@@ -21,3 +21,9 @@ body {
 .globe-card {
   will-change: transform;
 }
+
+/* ✅ prevent iOS “double tap to zoom” jitter on globe drag */
+.globe-card,
+canvas {
+  touch-action: none;
+}

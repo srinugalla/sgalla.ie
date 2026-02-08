@@ -121,7 +121,6 @@ function Starfield({ density = 700, theme = "dark" }) {
 
       const starRGB = theme === "light" ? "0,0,0" : "255,255,255";
 
-      // gentle vignette
       const g = ctx.createRadialGradient(w * 0.5, h * 0.5, 60, w * 0.5, h * 0.5, Math.max(w, h) * 0.95);
       if (theme === "light") {
         g.addColorStop(0, "rgba(0,0,0,0.02)");
@@ -141,7 +140,6 @@ function Starfield({ density = 700, theme = "dark" }) {
         ctx.fill();
       }
 
-      // meteors
       const now = t;
       const since = now - lastMeteorAt.current;
       const minGap = theme === "light" ? 5200 : 3300;
@@ -285,9 +283,8 @@ function Globe({ items, onSelect, theme = "dark" }) {
   const innerRef = useRef(null);
   const rafRef = useRef(0);
 
-  // stable rotation only (no position drift)
   const rot = useRef({ x: -12, y: 18 });
-  const vel = useRef({ x: 0.0, y: 0.085 }); // stable base auto-rotate
+  const vel = useRef({ x: 0.0, y: 0.085 });
   const drag = useRef({ active: false, lx: 0, ly: 0 });
   const lastInteract = useRef(0);
 
@@ -295,23 +292,31 @@ function Globe({ items, onSelect, theme = "dark" }) {
   const [wrapSize, setWrapSize] = useState(960);
   const [cardScale, setCardScale] = useState(1);
 
+  // ✅ better mobile sizing: respect top header + bottom pill
   useEffect(() => {
     const onResize = () => {
-      const s = Math.min(window.innerWidth, window.innerHeight);
-      const ws = clamp(Math.floor(s * 0.90), 700, 1120);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      // safe padding for header+footer
+      const safeTop = w < 640 ? 124 : 92;
+      const safeBottom = 84;
+
+      const usable = Math.max(520, Math.min(w, h - safeTop - safeBottom));
+      const ws = clamp(Math.floor(usable * 0.98), 340, 1120);
       setWrapSize(ws);
 
-      const r = clamp(Math.floor(ws * 0.47), 290, 520);
+      const r = clamp(Math.floor(ws * 0.47), 165, 520);
       setR(r);
 
-      setCardScale(clamp(s / 1300, 0.84, 1.02));
+      setCardScale(clamp(usable / 1200, 0.78, 1.02));
     };
+
     onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // close pole gaps
   const points = useMemo(() => {
     const n = items.length;
     const pts = [];
@@ -328,25 +333,21 @@ function Globe({ items, onSelect, theme = "dark" }) {
     return pts;
   }, [items.length]);
 
-  // smooth stable tick: only rotate
   useEffect(() => {
     let last = performance.now();
     const tick = (now) => {
       const dt = Math.min(34, now - last);
       last = now;
 
-      // rotate only, stable
       rot.current.y += vel.current.y * (dt / 16);
       rot.current.x += vel.current.x * (dt / 16);
       rot.current.x = clamp(rot.current.x, -46, 46);
 
-      // friction
       vel.current.y *= 0.992;
       vel.current.x *= 0.992;
 
       const idle = !drag.current.active && now - lastInteract.current > 900;
 
-      // when idle: gently return to base auto rotate instead of decaying to 0
       if (idle) {
         vel.current.y = lerp(vel.current.y, 0.085, 0.012);
         vel.current.x = lerp(vel.current.x, 0.0, 0.030);
@@ -366,7 +367,6 @@ function Globe({ items, onSelect, theme = "dark" }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // drag
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -415,7 +415,6 @@ function Globe({ items, onSelect, theme = "dark" }) {
     };
   }, []);
 
-  // wheel
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -440,7 +439,6 @@ function Globe({ items, onSelect, theme = "dark" }) {
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  // diagonal specular only (no rings)
   const specular =
     theme === "light"
       ? "linear-gradient(135deg, rgba(0,0,0,0.07), rgba(255,255,255,0) 46%), linear-gradient(315deg, rgba(0,0,0,0.04), rgba(255,255,255,0) 58%)"
@@ -464,11 +462,9 @@ function Globe({ items, onSelect, theme = "dark" }) {
               const p = points[i];
               const place = `rotateY(${(p.lon * 180) / Math.PI}deg) rotateX(${(-p.lat * 180) / Math.PI}deg) translateZ(${R}px)`;
 
-              // smaller, cleaner
               const w = (it.w ?? 142) * cardScale;
               const h = (it.h ?? 96) * cardScale;
 
-              // stronger contrast in light theme
               const cardBorder = theme === "light" ? "border-black/15" : "border-white/12";
               const cardBg = theme === "light" ? "bg-white/92" : "bg-white/[0.06]";
               const textMain = theme === "light" ? "text-black/88" : "text-white/92";
@@ -501,10 +497,7 @@ function Globe({ items, onSelect, theme = "dark" }) {
                     className={cn("relative h-full w-full overflow-hidden rounded-2xl border backdrop-blur-md transition", cardBorder, cardBg)}
                     style={{
                       background: `radial-gradient(circle at 22% 18%, ${bgA}, rgba(255,255,255,0.08) 32%, rgba(0,0,0,0) 72%), linear-gradient(135deg, ${bgA}, ${bgB} 60%, rgba(0,0,0,0))`,
-                      boxShadow:
-                        theme === "light"
-                          ? "0 10px 22px rgba(0,0,0,0.06)"
-                          : "0 14px 40px rgba(0,0,0,0.42)",
+                      boxShadow: theme === "light" ? "0 10px 22px rgba(0,0,0,0.06)" : "0 14px 40px rgba(0,0,0,0.42)",
                     }}
                   >
                     <div className="flex items-start justify-between gap-2 p-3">
@@ -556,25 +549,27 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, name
   const btn = theme === "light" ? btnLight : btnDark;
 
   return (
-    <>
-      <div className="fixed inset-x-0 top-0 z-30">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
+    <div className="fixed inset-x-0 top-0 z-30">
+      {/* ✅ mobile friendly header */}
+      <div className="mx-auto max-w-6xl px-4 py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div
               className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-2xl border text-xs font-extrabold tracking-wide",
+                "flex h-10 w-10 items-center justify-center rounded-2xl border text-xs font-extrabold tracking-wide shrink-0",
                 theme === "light" ? "border-black/10 bg-black/[0.04] text-black/80" : "border-white/12 bg-white/[0.06] text-white/90"
               )}
             >
               SG
             </div>
-            <div>
-              <div className={cn("text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>{nameText}</div>
-              <div className={cn("text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>DevOps Engineer • Dublin, Ireland</div>
+            <div className="min-w-0">
+              <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>{nameText}</div>
+              <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>DevOps Engineer • Dublin, Ireland</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* ✅ buttons wrap instead of overlapping */}
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <button onClick={onAbout} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
               About
             </button>
@@ -602,21 +597,7 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, name
           </div>
         </div>
       </div>
-
-      {/* ✅ keep only one helper pill (remove the duplicate one from globe) */}
-      <div className="fixed inset-x-0 bottom-6 z-30">
-        <div className="mx-auto flex max-w-6xl items-center justify-center px-4">
-          <div
-            className={cn(
-              "rounded-full border px-4 py-2 text-[11px] font-semibold tracking-widest backdrop-blur",
-              theme === "light" ? "border-black/10 bg-white/70 text-black/60" : "border-white/12 bg-black/35 text-white/70"
-            )}
-          >
-            DRAG / TRACKPAD SWIPE • CLICK CARD • BROWSE GRID/LIST
-          </div>
-        </div>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -765,7 +746,9 @@ function resolvePopupData(sel, data) {
 
 /* ----------------------------------- App ---------------------------------- */
 export default function App() {
-  const [theme, setTheme] = useState("light");
+  // ✅ default dark
+  const [theme, setTheme] = useState("dark");
+
   const [browseOpen, setBrowseOpen] = useState(false);
   const [browseMode, setBrowseMode] = useState("grid");
   const [contactOpen, setContactOpen] = useState(false);
@@ -934,7 +917,6 @@ export default function App() {
       })),
     ];
 
-    // slightly denser but still spaced
     const expanded = [];
     for (let i = 0; i < 2; i++) {
       for (let j = 0; j < baseCards.length; j++) {
@@ -1177,7 +1159,9 @@ export default function App() {
         onAbout={() => setAboutOpen(true)}
         onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
         onBrowse={() => setBrowseOpen(true)}
-        onReset={reset}
+        onReset={() => {
+          reset();
+        }}
         onContact={() => setContactOpen(true)}
       />
 
@@ -1201,8 +1185,29 @@ export default function App() {
           <div className={cn("rounded-2xl border p-4", theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]")}>
             <div className={cn("text-xs font-semibold tracking-widest", theme === "light" ? "text-black/55" : "text-white/55")}>ABOUT ME</div>
             <p className={cn("mt-3 text-sm leading-6", theme === "light" ? "text-black/70" : "text-white/75")}>
-              DevOps Engineer focused on reliable CI/CD, cloud infrastructure, Kubernetes operations, and practical automation.
-              I enjoy building systems that are observable, repeatable, and safe to ship.
+                      <p>
+                        I’m a DevOps Engineer who turns complex systems into reliable, scalable,
+                      and easy-to-operate platforms.
+                      </p>
+
+                      <p>
+                        I specialize in building production-ready cloud infrastructure, CI/CD
+                      pipelines teams trust, and Kubernetes environments that scale without
+                      drama. My focus is always on repeatability, observability, and safe
+                      delivery — so teams can move fast without breaking things.
+                      </p>
+
+                      <p>
+                        I bring a rare blend of hands-on DevOps engineering and strong business
+                      understanding. Having worked across product, delivery, and operations,
+                      I don’t just automate systems — I design them around real business needs,
+                      timelines, and risk.
+                      </p>
+
+                      <p>  
+                        If you need predictable deployments, secure infrastructure, and a DevOps
+                      partner who owns outcomes end to end — I’d love to talk.
+                      </p>
             </p>
           </div>
 
@@ -1301,17 +1306,27 @@ export default function App() {
         </div>
       </Modal>
 
-      <Modal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title={selected?.company ? `${selected.company}` : selected?.title || "Details"}
-        theme={theme}
-      >
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.company ? `${selected.company}` : selected?.title || "Details"} theme={theme}>
         <DetailsModal />
       </Modal>
 
+      {/* ✅ Copyright stays visible and small on mobile */}
       <div className={cn("pointer-events-none fixed bottom-3 right-4 z-40 text-[11px]", theme === "light" ? "text-black/40" : "text-white/45")}>
         © {new Date().getFullYear()} Srinivasarao Galla
+      </div>
+
+      {/* ✅ single helper pill */}
+      <div className="fixed inset-x-0 bottom-6 z-30">
+        <div className="mx-auto flex max-w-6xl items-center justify-center px-4">
+          <div
+            className={cn(
+              "rounded-full border px-4 py-2 text-[11px] font-semibold tracking-widest backdrop-blur",
+              theme === "light" ? "border-black/10 bg-white/70 text-black/60" : "border-white/12 bg-black/35 text-white/70"
+            )}
+          >
+            DRAG / TRACKPAD SWIPE • CLICK CARD • BROWSE GRID/LIST
+          </div>
+        </div>
       </div>
     </div>
   );
