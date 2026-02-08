@@ -1,38 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Mail,
-  Phone,
   ArrowUpRight,
-  X,
-  RotateCcw,
   ExternalLink,
   Github,
   Linkedin,
   LayoutGrid,
   List as ListIcon,
-  Sun,
+  Mail,
   Moon,
+  Phone,
+  RotateCcw,
+  Sun,
+  X,
 } from "lucide-react";
 
-/**
- * - Transparent “glass” globe (see cards 360°)
- * - Pole overlap fix (clamped latitudes)
- * - Cards aligned to globe surface (embedded feel)
- * - Smooth inertia + trackpad swipe (wheel) rotation
- * - Dark/Light theme toggle
- * - Starfield + occasional meteors (“dying stars”)
- * - Grid/List browse view
- * - Rich popups for experience/skills/education + contact modal
- *
- * Put your photo here:
- *   /public/profile.png
- *
- * Install:
- *   npm i framer-motion lucide-react
- */
-
 const cn = (...c) => c.filter(Boolean).join(" ");
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
 
 function hashCode(str) {
   let h = 0;
@@ -62,10 +47,40 @@ function initials(name = "") {
   return (a + b).toUpperCase();
 }
 
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const lerp = (a, b, t) => a + (b - a) * t;
+/* ----------------------------- Binary reveal name ----------------------------- */
+function useBinaryReveal(finalText, { durationMs = 1200, settleMs = 200 } = {}) {
+  const [text, setText] = useState(finalText);
+  useEffect(() => {
+    let raf = 0;
+    const start = performance.now();
+    const chars = finalText.split("");
+    const total = chars.length;
 
-// ---------- Starfield + Meteors ----------
+    const tick = (now) => {
+      const t = now - start;
+      const p = clamp(t / durationMs, 0, 1);
+      const revealCount = Math.floor(p * total);
+
+      let out = "";
+      for (let i = 0; i < total; i++) {
+        const c = chars[i];
+        if (i < revealCount) out += c;
+        else out += c === " " ? " " : Math.random() > 0.5 ? "0" : "1";
+      }
+      setText(out);
+
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else setTimeout(() => setText(finalText), settleMs);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [finalText, durationMs, settleMs]);
+
+  return text;
+}
+
+/* ----------------------------- Starfield + Meteors ----------------------------- */
 function Starfield({ density = 700, theme = "dark" }) {
   const ref = useRef(null);
   const raf = useRef(0);
@@ -92,7 +107,7 @@ function Starfield({ density = 700, theme = "dark" }) {
       stars.current = new Array(target).fill(0).map(() => ({
         x: Math.random() * w,
         y: Math.random() * h,
-        r: Math.random() * 1.15 + 0.15,
+        r: Math.random() * 1.1 + 0.12,
         a: Math.random() * 0.55 + 0.08,
         tw: Math.random() * 0.7 + 0.25,
         ph: Math.random() * Math.PI * 2,
@@ -106,26 +121,18 @@ function Starfield({ density = 700, theme = "dark" }) {
 
       const starRGB = theme === "light" ? "0,0,0" : "255,255,255";
 
-      // subtle vignette / fog
-      const g = ctx.createRadialGradient(
-        w * 0.5,
-        h * 0.35,
-        20,
-        w * 0.5,
-        h * 0.55,
-        Math.max(w, h) * 0.75
-      );
+      // gentle vignette
+      const g = ctx.createRadialGradient(w * 0.5, h * 0.5, 60, w * 0.5, h * 0.5, Math.max(w, h) * 0.95);
       if (theme === "light") {
-        g.addColorStop(0, "rgba(0,0,0,0.07)");
+        g.addColorStop(0, "rgba(0,0,0,0.02)");
         g.addColorStop(1, "rgba(255,255,255,0)");
       } else {
-        g.addColorStop(0, "rgba(255,255,255,0.03)");
+        g.addColorStop(0, "rgba(255,255,255,0.015)");
         g.addColorStop(1, "rgba(0,0,0,0)");
       }
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
 
-      // stars
       for (const s of stars.current) {
         const tw = 0.6 + 0.4 * Math.sin((t / 1000) * s.tw + s.ph);
         ctx.beginPath();
@@ -134,33 +141,32 @@ function Starfield({ density = 700, theme = "dark" }) {
         ctx.fill();
       }
 
-      // occasional meteors / dying stars
+      // meteors
       const now = t;
       const since = now - lastMeteorAt.current;
-      const minGap = theme === "light" ? 5200 : 4200;
-      const maxGap = theme === "light" ? 9800 : 8200;
+      const minGap = theme === "light" ? 5200 : 3300;
+      const maxGap = theme === "light" ? 10000 : 7600;
       const gap = minGap + Math.random() * (maxGap - minGap);
 
       if (since > gap && meteors.current.length < 3) {
         lastMeteorAt.current = now;
 
         const startEdge = Math.random() < 0.5 ? "top" : "left";
-        const x0 = startEdge === "top" ? Math.random() * w : -40;
-        const y0 = startEdge === "top" ? -40 : Math.random() * (h * 0.6);
+        const x0 = startEdge === "top" ? Math.random() * w : -120;
+        const y0 = startEdge === "top" ? -120 : Math.random() * (h * 0.75);
 
-        const len = 260 + Math.random() * 260;
-        const angle = (Math.PI * (20 + Math.random() * 18)) / 180; // 20–38°
-        const vx = Math.cos(angle) * (10 + Math.random() * 6);
-        const vy = Math.sin(angle) * (10 + Math.random() * 6);
+        const len = 360 + Math.random() * 520;
+        const angle = (Math.PI * (16 + Math.random() * 20)) / 180;
+        const speed = 12 + Math.random() * 7;
 
         meteors.current.push({
           x: x0,
           y: y0,
-          vx,
-          vy,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
           len,
           life: 1,
-          fade: 0.014 + Math.random() * 0.012,
+          fade: 0.012 + Math.random() * 0.012,
         });
       }
 
@@ -169,34 +175,50 @@ function Starfield({ density = 700, theme = "dark" }) {
           const nx = m.x + m.vx;
           const ny = m.y + m.vy;
           const life = m.life - m.fade;
-
-          const tailX = nx - m.vx * (m.len / 14);
-          const tailY = ny - m.vy * (m.len / 14);
-
           const alpha = Math.max(0, life);
+
+          const tailX = nx - m.vx * (m.len / 16);
+          const tailY = ny - m.vy * (m.len / 16);
+
           const grad = ctx.createLinearGradient(nx, ny, tailX, tailY);
-          const head = theme === "light" ? "rgba(0,0,0," : "rgba(255,255,255,";
-          grad.addColorStop(0, `${head}${0.55 * alpha})`);
-          grad.addColorStop(1, `${head}0)`);
+          if (theme === "light") {
+            grad.addColorStop(0, `rgba(0,0,0,${0.24 * alpha})`);
+            grad.addColorStop(1, `rgba(0,0,0,0)`);
+          } else {
+            grad.addColorStop(0, `rgba(255,255,255,${0.55 * alpha})`);
+            grad.addColorStop(0.2, `rgba(255,235,150,${0.45 * alpha})`);
+            grad.addColorStop(0.55, `rgba(255,160,40,${0.33 * alpha})`);
+            grad.addColorStop(1, `rgba(255,70,0,0)`);
+          }
 
           ctx.strokeStyle = grad;
-          ctx.lineWidth = 1.2;
+          ctx.lineWidth = theme === "light" ? 1.0 : 1.4;
           ctx.beginPath();
           ctx.moveTo(nx, ny);
           ctx.lineTo(tailX, tailY);
           ctx.stroke();
 
+          if (theme !== "light") {
+            const glow = ctx.createRadialGradient(nx, ny, 0, nx, ny, 18);
+            glow.addColorStop(0, `rgba(255,220,120,${0.16 * alpha})`);
+            glow.addColorStop(1, `rgba(255,90,0,0)`);
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(nx, ny, 18, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
           ctx.fillStyle =
             theme === "light"
-              ? `rgba(0,0,0,${0.25 * alpha})`
+              ? `rgba(0,0,0,${0.16 * alpha})`
               : `rgba(255,255,255,${0.22 * alpha})`;
           ctx.beginPath();
-          ctx.arc(nx, ny, 1.6, 0, Math.PI * 2);
+          ctx.arc(nx, ny, theme === "light" ? 1.2 : 1.7, 0, Math.PI * 2);
           ctx.fill();
 
           return { ...m, x: nx, y: ny, life };
         })
-        .filter((m) => m.life > 0 && m.x < w + 200 && m.y < h + 200);
+        .filter((m) => m.life > 0 && m.x < w + 360 && m.y < h + 360);
 
       raf.current = requestAnimationFrame(draw);
     };
@@ -213,7 +235,7 @@ function Starfield({ density = 700, theme = "dark" }) {
   return <canvas ref={ref} className="pointer-events-none fixed inset-0 z-0" />;
 }
 
-// ---------- Modal ----------
+/* --------------------------------- Modal --------------------------------- */
 function Modal({ open, onClose, title, children, theme = "dark" }) {
   const panel =
     theme === "light"
@@ -224,124 +246,119 @@ function Modal({ open, onClose, title, children, theme = "dark" }) {
     theme === "light"
       ? "border-black/10 bg-black/[0.02] text-black/70 hover:bg-black/[0.06]"
       : "border-white/15 bg-white/[0.02] text-white/80 hover:bg-white/[0.06]";
-  const overlay = theme === "light" ? "bg-black/35" : "bg-black/70";
+  const overlay = theme === "light" ? "bg-black/28" : "bg-black/70";
 
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          className="fixed inset-0 z-50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
+        <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <div className={cn("absolute inset-0 backdrop-blur", overlay)} onClick={onClose} />
-          <motion.div
-            className={cn(
-              "absolute left-1/2 top-1/2 w-[min(900px,92vw)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl border shadow-[0_20px_90px_rgba(0,0,0,0.35)]",
-              panel
-            )}
-            initial={{ y: 18, scale: 0.98, opacity: 0 }}
-            animate={{ y: 0, scale: 1, opacity: 1 }}
-            exit={{ y: 12, scale: 0.99, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 220, damping: 26 }}
-          >
-            <div className={cn("flex items-center justify-between border-b px-5 py-4", headerBorder)}>
-              <div className={cn("text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>
-                {title}
-              </div>
-              <button
-                onClick={onClose}
-                className={cn("rounded-full border p-2 transition", closeBtn)}
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div
-              className={cn(
-                "max-h-[74vh] overflow-y-auto p-5 text-sm leading-6",
-                theme === "light" ? "text-black/80" : "text-white/75"
-              )}
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <motion.div
+              className={cn("w-[min(980px,92vw)] overflow-hidden rounded-3xl border shadow-[0_20px_90px_rgba(0,0,0,0.35)]", panel)}
+              initial={{ y: 18, scale: 0.98, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 12, scale: 0.99, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 220, damping: 26 }}
             >
-              {children}
-            </div>
-          </motion.div>
+              <div className={cn("flex items-center justify-between border-b px-5 py-4", headerBorder)}>
+                <div className={cn("text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>{title}</div>
+                <button onClick={onClose} className={cn("rounded-full border p-2 transition", closeBtn)} aria-label="Close">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className={cn("max-h-[78vh] overflow-y-auto p-5 text-sm leading-6", theme === "light" ? "text-black/80" : "text-white/75")}>
+                {children}
+              </div>
+            </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
   );
 }
 
-// ---------- Premium Globe ----------
+/* --------------------------------- Globe --------------------------------- */
 function Globe({ items, onSelect, theme = "dark" }) {
   const wrapRef = useRef(null);
+  const innerRef = useRef(null);
   const rafRef = useRef(0);
 
+  // stable rotation only (no position drift)
   const rot = useRef({ x: -12, y: 18 });
-  const vel = useRef({ x: 0.0, y: 0.14 });
+  const vel = useRef({ x: 0.0, y: 0.085 }); // stable base auto-rotate
   const drag = useRef({ active: false, lx: 0, ly: 0 });
   const lastInteract = useRef(0);
-  const [rxy, setRxy] = useState({ x: rot.current.x, y: rot.current.y });
 
-  const [R, setR] = useState(300);
+  const [R, setR] = useState(420);
+  const [wrapSize, setWrapSize] = useState(960);
   const [cardScale, setCardScale] = useState(1);
+
   useEffect(() => {
     const onResize = () => {
       const s = Math.min(window.innerWidth, window.innerHeight);
-      setR(clamp(Math.floor(s * 0.30), 200, 380));
-      setCardScale(clamp(s / 900, 0.72, 1.08));
+      const ws = clamp(Math.floor(s * 0.90), 700, 1120);
+      setWrapSize(ws);
+
+      const r = clamp(Math.floor(ws * 0.47), 290, 520);
+      setR(r);
+
+      setCardScale(clamp(s / 1300, 0.84, 1.02));
     };
     onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Even distribution with pole clamp (prevents overlap)
+  // close pole gaps
   const points = useMemo(() => {
     const n = items.length;
     const pts = [];
     const phi = Math.PI * (3 - Math.sqrt(5));
-    const poleClamp = 0.85;
-
+    const poleClamp = 0.975;
     for (let i = 0; i < n; i++) {
       const y = lerp(poleClamp, -poleClamp, i / (n - 1));
       const r = Math.sqrt(1 - y * y);
       const theta = phi * i;
       const x = Math.cos(theta) * r;
       const z = Math.sin(theta) * r;
-      const lon = Math.atan2(x, z);
-      const lat = Math.asin(y);
-      pts.push({ lon, lat, x, y, z });
+      pts.push({ lon: Math.atan2(x, z), lat: Math.asin(y) });
     }
     return pts;
   }, [items.length]);
 
-  // smoother inertia loop
+  // smooth stable tick: only rotate
   useEffect(() => {
     let last = performance.now();
     const tick = (now) => {
-      const dt = Math.min(32, now - last);
+      const dt = Math.min(34, now - last);
       last = now;
 
+      // rotate only, stable
       rot.current.y += vel.current.y * (dt / 16);
       rot.current.x += vel.current.x * (dt / 16);
-      rot.current.x = clamp(rot.current.x, -45, 45);
+      rot.current.x = clamp(rot.current.x, -46, 46);
 
+      // friction
       vel.current.y *= 0.992;
       vel.current.x *= 0.992;
 
       const idle = !drag.current.active && now - lastInteract.current > 900;
+
+      // when idle: gently return to base auto rotate instead of decaying to 0
       if (idle) {
-        vel.current.y = lerp(vel.current.y, 0.085, 0.015);
-        vel.current.x = lerp(vel.current.x, 0.0, 0.03);
+        vel.current.y = lerp(vel.current.y, 0.085, 0.012);
+        vel.current.x = lerp(vel.current.x, 0.0, 0.030);
       } else {
-        vel.current.y = lerp(vel.current.y, 0.0, 0.02);
-        vel.current.x = lerp(vel.current.x, 0.0, 0.03);
+        vel.current.y = lerp(vel.current.y, 0.0, 0.022);
+        vel.current.x = lerp(vel.current.x, 0.0, 0.030);
       }
 
-      setRxy({ x: rot.current.x, y: rot.current.y });
+      if (innerRef.current) {
+        innerRef.current.style.transform = `rotateX(${rot.current.x}deg) rotateY(${rot.current.y}deg)`;
+      }
+
       rafRef.current = requestAnimationFrame(tick);
     };
 
@@ -349,7 +366,7 @@ function Globe({ items, onSelect, theme = "dark" }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // drag to rotate
+  // drag
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -366,6 +383,7 @@ function Globe({ items, onSelect, theme = "dark" }) {
     const onMove = (e) => {
       if (!drag.current.active) return;
       lastInteract.current = performance.now();
+
       const dx = e.clientX - drag.current.lx;
       const dy = e.clientY - drag.current.ly;
       drag.current.lx = e.clientX;
@@ -375,8 +393,8 @@ function Globe({ items, onSelect, theme = "dark" }) {
       rot.current.x -= dy * 0.14;
       rot.current.x = clamp(rot.current.x, -55, 55);
 
-      vel.current.y = dx * 0.045;
-      vel.current.x = -dy * 0.045;
+      vel.current.y = dx * 0.055;
+      vel.current.x = -dy * 0.055;
     };
 
     const onUp = () => {
@@ -397,7 +415,7 @@ function Globe({ items, onSelect, theme = "dark" }) {
     };
   }, []);
 
-  // trackpad swipe / wheel
+  // wheel
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -410,9 +428,8 @@ function Globe({ items, onSelect, theme = "dark" }) {
 
     const onWheel = (e) => {
       if (!e.ctrlKey) e.preventDefault();
-      const { dx, dy } = norm(e);
       lastInteract.current = performance.now();
-
+      const { dx, dy } = norm(e);
       const s = 0.0022;
       vel.current.y += dx * s;
       vel.current.x += -dy * s;
@@ -423,187 +440,102 @@ function Globe({ items, onSelect, theme = "dark" }) {
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  // depth sort
-  const placed = useMemo(() => {
-    const radY = (rxy.y * Math.PI) / 180;
-    const radX = (rxy.x * Math.PI) / 180;
-    const sinY = Math.sin(radY);
-    const cosY = Math.cos(radY);
-    const sinX = Math.sin(radX);
-    const cosX = Math.cos(radX);
-
-    return items
-      .map((it, i) => {
-        const p = points[i];
-        let x = p.x * cosY + p.z * sinY;
-        let z = -p.x * sinY + p.z * cosY;
-        let y = p.y;
-
-        const y2 = y * cosX - z * sinX;
-        const z2 = y * sinX + z * cosX;
-        y = y2;
-        z = z2;
-
-        const depth = clamp((z + 1) / 2, 0, 1);
-        return { it, p, z, depth };
-      })
-      .sort((a, b) => a.z - b.z);
-  }, [items, points, rxy]);
-
-  const rimBorder = theme === "light" ? "border-black/10" : "border-white/10";
+  // diagonal specular only (no rings)
+  const specular =
+    theme === "light"
+      ? "linear-gradient(135deg, rgba(0,0,0,0.07), rgba(255,255,255,0) 46%), linear-gradient(315deg, rgba(0,0,0,0.04), rgba(255,255,255,0) 58%)"
+      : "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(0,0,0,0) 48%), linear-gradient(315deg, rgba(255,210,140,0.02), rgba(0,0,0,0) 58%)";
 
   return (
     <div className="relative z-10 flex h-[100svh] w-full items-center justify-center">
-      <div
+      <motion.div
         ref={wrapRef}
-        className="relative h-[min(82vh,820px)] w-[min(82vh,820px)] select-none"
-        style={{ perspective: "1200px" }}
+        className="relative select-none"
+        style={{ width: wrapSize, height: wrapSize, perspective: "1200px" }}
+        initial={{ opacity: 0, scale: 0.70, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 165, damping: 20 }}
       >
-        {/* transparent glass sphere */}
-        <div className={cn("pointer-events-none absolute inset-0 rounded-full border", rimBorder)} />
-        <div
-          className="pointer-events-none absolute inset-0 rounded-full"
-          style={{
-            background:
-              theme === "light"
-                ? "radial-gradient(circle at 50% 50%, rgba(0,0,0,0.04), rgba(255,255,255,0) 62%)"
-                : "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.04), rgba(0,0,0,0) 62%)",
-          }}
-        />
+        <div className="pointer-events-none absolute inset-0 rounded-full" style={{ background: specular, opacity: theme === "light" ? 0.18 : 0.22 }} />
 
         <div className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
-          <div
-            className="absolute inset-0"
-            style={{
-              transformStyle: "preserve-3d",
-              transform: `rotateX(${rxy.x}deg) rotateY(${rxy.y}deg)`,
-            }}
-          >
-            {placed.map(({ it, p, depth }) => {
-              const rotateToSurface = `rotateY(${(p.lon * 180) / Math.PI}deg) rotateX(${(-p.lat * 180) / Math.PI}deg) translateZ(${R}px)`;
-              const faceOut = `rotateY(${-rxy.y}deg) rotateX(${-rxy.x}deg)`; // embedded feel
+          <div ref={innerRef} className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
+            {items.map((it, i) => {
+              const p = points[i];
+              const place = `rotateY(${(p.lon * 180) / Math.PI}deg) rotateX(${(-p.lat * 180) / Math.PI}deg) translateZ(${R}px)`;
 
-              const sc = 0.58 + depth * 0.52;
-              const op = 0.18 + depth * 0.82;
+              // smaller, cleaner
+              const w = (it.w ?? 142) * cardScale;
+              const h = (it.h ?? 96) * cardScale;
 
-              const w = (it.w ?? 104) * cardScale;
-              const h = (it.h ?? 68) * cardScale;
+              // stronger contrast in light theme
+              const cardBorder = theme === "light" ? "border-black/15" : "border-white/12";
+              const cardBg = theme === "light" ? "bg-white/92" : "bg-white/[0.06]";
+              const textMain = theme === "light" ? "text-black/88" : "text-white/92";
+              const textSub = theme === "light" ? "text-black/62" : "text-white/70";
 
-              const cardBorder = theme === "light" ? "border-black/10" : "border-white/10";
-              const cardBg = theme === "light" ? "bg-black/[0.03]" : "bg-white/[0.02]";
-              const chipBg = theme === "light" ? "bg-white/70" : "bg-black/35";
-              const chipBorder = theme === "light" ? "border-black/10" : "border-white/10";
-              const chipText = theme === "light" ? "text-black/75" : "text-white/85";
+              const pal = it.palette ?? pickPalette(it.company || it.title || it.id);
+              const bgA = theme === "light" ? `${pal.a}18` : `${pal.a}22`;
+              const bgB = theme === "light" ? `${pal.b}12` : `${pal.b}16`;
 
               return (
                 <button
                   key={it.id}
                   data-card
+                  className="globe-card group absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 outline-none"
+                  style={{
+                    width: w,
+                    height: h,
+                    transformStyle: "preserve-3d",
+                    transform: place,
+                    backfaceVisibility: "hidden",
+                    WebkitBackfaceVisibility: "hidden",
+                  }}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
                     onSelect(it);
                   }}
-                  className="group absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 outline-none"
-                  style={{
-                    width: w,
-                    height: h,
-                    transformStyle: "preserve-3d",
-                    transform: `${rotateToSurface} ${faceOut} scale(${sc * cardScale})`,
-                    opacity: op,
-                    zIndex: Math.floor(depth * 1000),
-                    backfaceVisibility: "hidden",
-                    WebkitBackfaceVisibility: "hidden",
-                  }}
                 >
                   <div
-                    className={cn(
-                      "relative h-full w-full overflow-hidden rounded-[6px] border shadow-[0_0_0_1px_rgba(255,255,255,0.03)] transition",
-                      cardBorder,
-                      cardBg,
-                      theme === "light" ? "group-hover:border-black/20" : "group-hover:border-white/20"
-                    )}
+                    className={cn("relative h-full w-full overflow-hidden rounded-2xl border backdrop-blur-md transition", cardBorder, cardBg)}
+                    style={{
+                      background: `radial-gradient(circle at 22% 18%, ${bgA}, rgba(255,255,255,0.08) 32%, rgba(0,0,0,0) 72%), linear-gradient(135deg, ${bgA}, ${bgB} 60%, rgba(0,0,0,0))`,
+                      boxShadow:
+                        theme === "light"
+                          ? "0 10px 22px rgba(0,0,0,0.06)"
+                          : "0 14px 40px rgba(0,0,0,0.42)",
+                    }}
                   >
-                  <div style={{ position: "fixed", top: 12, right: 12, zIndex: 999999, padding: "10px 12px", background: "red", color: "white", fontWeight: 800 }}>
-                      NEW GLOBE ✅
-                    </div>
-  
-                    {/* top chips */}
-                    <div className="pointer-events-none absolute inset-0">
-                      <div className="absolute left-2 top-2 flex items-center gap-2">
+                    <div className="flex items-start justify-between gap-2 p-3">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div
                           className={cn(
-                            "grid h-5 w-5 place-items-center rounded-full border text-[9px] font-semibold backdrop-blur",
-                            chipBorder,
-                            chipBg,
-                            chipText
+                            "grid h-9 w-9 place-items-center rounded-xl border border-white/10 font-extrabold",
+                            theme === "light" ? "bg-black/[0.04] text-black/75" : "bg-black/40 text-white/85"
                           )}
+                          style={{ fontSize: 10 }}
                         >
                           {it.logoText ? it.logoText : initials(it.company || it.title)}
                         </div>
-                        {it.company && (
-                          <div
-                            className={cn(
-                              "rounded-md border px-2 py-1 text-[9px] font-semibold tracking-wide backdrop-blur",
-                              chipBorder,
-                              chipBg,
-                              chipText
-                            )}
-                          >
-                            {it.company}
+
+                        <div className="min-w-0 text-left">
+                          <div className={cn("line-clamp-2 font-semibold leading-[14px]", textMain)} style={{ fontSize: 11 }}>
+                            {it.company || it.title}
                           </div>
-                        )}
+                          <div className={cn("mt-0.5 line-clamp-1 leading-[14px]", textSub)} style={{ fontSize: 10 }}>
+                            {it.title}
+                          </div>
+                        </div>
                       </div>
 
-                      {/* bottom hover title */}
-                      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2 opacity-0 transition group-hover:opacity-100">
-                        <div
-                          className={cn(
-                            "truncate rounded-md border px-2 py-1 text-[9px] font-semibold backdrop-blur",
-                            chipBorder,
-                            chipBg,
-                            chipText
-                          )}
-                        >
-                          {it.title}
-                        </div>
-                        <div className={cn("rounded-md border p-1 backdrop-blur", chipBorder, chipBg, chipText)}>
-                          <ArrowUpRight className="h-3 w-3" />
-                        </div>
+                      <div className={cn("rounded-xl p-1.5", theme === "light" ? "text-black/55" : "text-white/70")}>
+                        <ArrowUpRight className="h-4 w-4 opacity-70 transition group-hover:opacity-100" />
                       </div>
                     </div>
 
-                    {/* background */}
-                    {it.img ? (
-                      <img src={it.img} alt={it.title} className="h-full w-full object-cover" draggable={false} />
-                    ) : (
-                      (() => {
-                        const pal = it.palette ?? pickPalette(it.company || it.title || it.id);
-                        const c1 = theme === "light" ? `${pal.a}26` : `${pal.a}55`;
-                        const c2 = theme === "light" ? `${pal.a}18` : `${pal.a}40`;
-                        const c3 = theme === "light" ? `${pal.b}14` : `${pal.b}30`;
-                        return (
-                          <div
-                            className="h-full w-full"
-                            style={{
-                              background: `radial-gradient(circle at 24% 20%, ${c1}, rgba(255,255,255,0.10) 28%, rgba(0,0,0,0) 62%), linear-gradient(135deg, ${c2}, ${c3} 55%, rgba(0,0,0,0))`,
-                            }}
-                          />
-                        );
-                      })()
-                    )}
-
-                    {/* hover shine */}
-                    <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-100">
-                      <div
-                        className="absolute -inset-10"
-                        style={{
-                          background:
-                            theme === "light"
-                              ? "radial-gradient(circle at 30% 25%, rgba(0,0,0,0.06), rgba(255,255,255,0) 62%)"
-                              : "radial-gradient(circle at 30% 25%, rgba(255,245,210,0.18), rgba(0,0,0,0) 62%)",
-                        }}
-                      />
+                    <div className={cn("px-3 pb-3 text-left leading-[14px]", textSub)} style={{ fontSize: 10 }}>
+                      <span className="line-clamp-2">{it.meta || ""}</span>
                     </div>
                   </div>
                 </button>
@@ -611,13 +543,13 @@ function Globe({ items, onSelect, theme = "dark" }) {
             })}
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
 
-// ---------- HUD ----------
-function Hud({ onOpenContact, onReset, viewMode, onToggleBrowse, theme, onToggleTheme }) {
+/* ---------------------------------- HUD ---------------------------------- */
+function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, nameText }) {
   const btnBase = "rounded-full border transition";
   const btnDark = "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]";
   const btnLight = "border-black/10 bg-black/[0.03] text-black/75 hover:bg-black/[0.06]";
@@ -628,68 +560,50 @@ function Hud({ onOpenContact, onReset, viewMode, onToggleBrowse, theme, onToggle
       <div className="fixed inset-x-0 top-0 z-30">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
           <div className="flex items-center gap-3">
-            <a
-              href="https://www.linkedin.com/in/sgalla/"
-              target="_blank"
-              rel="noreferrer"
+            <div
               className={cn(
-                "relative h-9 w-9 overflow-hidden rounded-2xl border bg-white/[0.03]",
-                theme === "light" ? "border-black/10" : "border-white/12"
+                "flex h-10 w-10 items-center justify-center rounded-2xl border text-xs font-extrabold tracking-wide",
+                theme === "light" ? "border-black/10 bg-black/[0.04] text-black/80" : "border-white/12 bg-white/[0.06] text-white/90"
               )}
-              title="Open LinkedIn"
             >
-              <img src="/profile.png" alt="Srinivasarao Galla" className="h-full w-full object-cover" draggable={false} />
-            </a>
+              SG
+            </div>
             <div>
-              <div className={cn("text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>
-                Srinivasarao Galla
-              </div>
-              <div className={cn("text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>
-                DevOps Engineer • Dublin, Ireland
-              </div>
+              <div className={cn("text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>{nameText}</div>
+              <div className={cn("text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>DevOps Engineer • Dublin, Ireland</div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={onToggleTheme}
-              className={cn(btnBase, btn, "p-2")}
-              aria-label="Toggle theme"
-              title={theme === "dark" ? "Switch to Light" : "Switch to Dark"}
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            <button onClick={onAbout} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
+              About
             </button>
 
-            <button onClick={onToggleBrowse} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
-              {viewMode === "grid" ? (
-                <span className="inline-flex items-center gap-2">
-                  <LayoutGrid className="h-4 w-4" /> GRID
-                </span>
-              ) : viewMode === "list" ? (
-                <span className="inline-flex items-center gap-2">
-                  <ListIcon className="h-4 w-4" /> LIST
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-2">
-                  <LayoutGrid className="h-4 w-4" /> BROWSE
-                </span>
-              )}
+            <button onClick={onToggleTheme} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
+              <span className="inline-flex items-center gap-2">
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {theme === "dark" ? "Light" : "Dark"}
+              </span>
+            </button>
+
+            <button onClick={onBrowse} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
+              <span className="inline-flex items-center gap-2">
+                <LayoutGrid className="h-4 w-4" /> Browse
+              </span>
             </button>
 
             <button onClick={onReset} className={cn(btnBase, btn, "p-2")} aria-label="Reset" title="Reset">
               <RotateCcw className="h-4 w-4" />
             </button>
 
-            <button
-              onClick={onOpenContact}
-              className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}
-            >
-              CONTACT
+            <button onClick={onContact} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
+              Contact
             </button>
           </div>
         </div>
       </div>
 
+      {/* ✅ keep only one helper pill (remove the duplicate one from globe) */}
       <div className="fixed inset-x-0 bottom-6 z-30">
         <div className="mx-auto flex max-w-6xl items-center justify-center px-4">
           <div
@@ -698,7 +612,7 @@ function Hud({ onOpenContact, onReset, viewMode, onToggleBrowse, theme, onToggle
               theme === "light" ? "border-black/10 bg-white/70 text-black/60" : "border-white/12 bg-black/35 text-white/70"
             )}
           >
-            DRAG / TRACKPAD SWIPE TO ROTATE • CLICK CARD FOR DETAILS • BROWSE
+            DRAG / TRACKPAD SWIPE • CLICK CARD • BROWSE GRID/LIST
           </div>
         </div>
       </div>
@@ -706,7 +620,7 @@ function Hud({ onOpenContact, onReset, viewMode, onToggleBrowse, theme, onToggle
   );
 }
 
-// ---------- Browse View ----------
+/* ------------------------------- Browse View ------------------------------ */
 function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
   const pillBase = "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition";
   const active = theme === "light" ? "border-black/10 bg-black text-white" : "border-white/15 bg-white text-black";
@@ -714,11 +628,7 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
     theme === "light"
       ? "border-black/10 bg-black/[0.03] text-black/70 hover:bg-black/[0.06]"
       : "border-white/12 bg-white/[0.03] text-white/80 hover:bg-white/[0.06]";
-
-  const listWrap =
-    theme === "light"
-      ? "mt-4 max-h-[62vh] overflow-y-auto pr-1"
-      : "mt-4 max-h-[62vh] overflow-y-auto pr-1";
+  const wrap = "mt-4 max-h-[64vh] overflow-y-auto pr-1";
 
   return (
     <Modal open={open} onClose={onClose} title={mode === "grid" ? "Browse (Grid)" : "Browse (List)"} theme={theme}>
@@ -732,112 +642,96 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
       </div>
 
       {mode === "grid" ? (
-        <div className={listWrap}>
+        <div className={wrap}>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {cards.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => onPick(c)}
-                className={cn(
-                  "group relative overflow-hidden rounded-2xl border p-3 text-left transition",
-                  theme === "light"
-                    ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]"
-                    : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
-                )}
-                style={{
-                  background: (() => {
-                    const pal = c.palette ?? pickPalette(c.company || c.title || c.id);
-                    const a = theme === "light" ? `${pal.a}18` : `${pal.a}33`;
-                    const b = theme === "light" ? `${pal.b}12` : `${pal.b}18`;
-                    return `radial-gradient(circle at 24% 20%, ${a}, rgba(255,255,255,0.08) 30%, rgba(0,0,0,0) 62%), linear-gradient(135deg, ${a}, ${b} 55%, rgba(0,0,0,0))`;
-                  })(),
-                }}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+            {cards.map((c) => {
+              const pal = c.palette ?? pickPalette(c.company || c.title || c.id);
+              const a = theme === "light" ? `${pal.a}14` : `${pal.a}22`;
+              const b = theme === "light" ? `${pal.b}10` : `${pal.b}16`;
+
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => onPick(c)}
+                  className={cn(
+                    "group relative overflow-hidden rounded-2xl border p-3 text-left transition",
+                    theme === "light" ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
+                  )}
+                  style={{
+                    background: `radial-gradient(circle at 24% 20%, ${a}, rgba(255,255,255,0.08) 30%, rgba(0,0,0,0) 62%), linear-gradient(135deg, ${a}, ${b} 55%, rgba(0,0,0,0))`,
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className={cn(
+                          "grid h-9 w-9 place-items-center rounded-xl border text-xs font-extrabold",
+                          theme === "light" ? "border-black/10 bg-white/75 text-black/75" : "border-white/12 bg-black/30 text-white/85"
+                        )}
+                      >
+                        {c.logoText ? c.logoText : initials(c.company || c.title)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className={cn("truncate text-xs font-semibold", theme === "light" ? "text-black/80" : "text-white/85")}>
+                          {c.company || c.title}
+                        </div>
+                        <div className={cn("mt-0.5 line-clamp-1 text-[12px]", theme === "light" ? "text-black/55" : "text-white/60")}>{c.title}</div>
+                      </div>
+                    </div>
+                    <ArrowUpRight className={cn("h-4 w-4 shrink-0 transition", theme === "light" ? "text-black/50 group-hover:text-black/75" : "text-white/55 group-hover:text-white/80")} />
+                  </div>
+
+                  {c.meta && <div className={cn("mt-2 line-clamp-2 text-[12px] leading-4", theme === "light" ? "text-black/55" : "text-white/60")}>{c.meta}</div>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className={wrap}>
+          <div className="grid gap-2">
+            {cards.map((c) => {
+              const pal = c.palette ?? pickPalette(c.company || c.title || c.id);
+              const a = theme === "light" ? `${pal.a}12` : `${pal.a}18`;
+              const b = theme === "light" ? `${pal.b}10` : `${pal.b}14`;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => onPick(c)}
+                  className={cn(
+                    "group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition",
+                    theme === "light" ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
+                  )}
+                  style={{
+                    background: `radial-gradient(circle at 22% 20%, ${a}, rgba(255,255,255,0.06) 32%, rgba(0,0,0,0) 62%), linear-gradient(135deg, ${a}, ${b} 55%, rgba(0,0,0,0))`,
+                  }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
                       className={cn(
-                        "grid h-8 w-8 place-items-center rounded-xl border text-xs font-semibold",
-                        theme === "light"
-                          ? "border-black/10 bg-white/70 text-black/75"
-                          : "border-white/12 bg-black/30 text-white/85"
+                        "grid h-10 w-10 place-items-center rounded-xl border text-xs font-extrabold",
+                        theme === "light" ? "border-black/10 bg-white/75 text-black/75" : "border-white/12 bg-black/30 text-white/85"
                       )}
                     >
                       {c.logoText ? c.logoText : initials(c.company || c.title)}
                     </div>
-                    <div>
-                      <div className={cn("text-xs font-semibold", theme === "light" ? "text-black/80" : "text-white/85")}>
-                        {c.company || c.title}
-                      </div>
-                      <div className={cn("mt-0.5 line-clamp-1 text-[11px]", theme === "light" ? "text-black/55" : "text-white/55")}>
-                        {c.title}
-                      </div>
+                    <div className="min-w-0">
+                      <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black/85" : "text-white/90")}>{c.title}</div>
+                      <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>{c.company || c.meta || ""}</div>
                     </div>
                   </div>
-                  <ArrowUpRight className={cn("h-4 w-4 transition", theme === "light" ? "text-black/50 group-hover:text-black/70" : "text-white/55 group-hover:text-white/80")} />
-                </div>
-                {c.meta && <div className={cn("mt-2 line-clamp-2 text-[11px]", theme === "light" ? "text-black/55" : "text-white/60")}>{c.meta}</div>}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className={listWrap}>
-          <div className="grid gap-2">
-            {cards.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => onPick(c)}
-                className={cn(
-                  "group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition",
-                  theme === "light"
-                    ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]"
-                    : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
-                )}
-                style={{
-                  background: (() => {
-                    const pal = c.palette ?? pickPalette(c.company || c.title || c.id);
-                    const a = theme === "light" ? `${pal.a}14` : `${pal.a}28`;
-                    const b = theme === "light" ? `${pal.b}10` : `${pal.b}14`;
-                    return `radial-gradient(circle at 22% 20%, ${a}, rgba(255,255,255,0.06) 32%, rgba(0,0,0,0) 62%), linear-gradient(135deg, ${a}, ${b} 55%, rgba(0,0,0,0))`;
-                  })(),
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "grid h-9 w-9 place-items-center rounded-xl border text-xs font-semibold",
-                      theme === "light"
-                        ? "border-black/10 bg-white/70 text-black/75"
-                        : "border-white/12 bg-black/30 text-white/85"
-                    )}
-                  >
-                    {c.logoText ? c.logoText : initials(c.company || c.title)}
-                  </div>
-                  <div>
-                    <div className={cn("text-sm font-semibold", theme === "light" ? "text-black/85" : "text-white/85")}>
-                      {c.title}
-                    </div>
-                    <div className={cn("mt-0.5 text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>
-                      {c.company || c.meta || ""}
-                    </div>
-                  </div>
-                </div>
-                <ArrowUpRight className={cn("h-4 w-4 transition", theme === "light" ? "text-black/50 group-hover:text-black/70" : "text-white/55 group-hover:text-white/80")} />
-              </button>
-            ))}
+                  <ArrowUpRight className={cn("h-4 w-4 transition", theme === "light" ? "text-black/50 group-hover:text-black/75" : "text-white/55 group-hover:text-white/80")} />
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
-
-      <div className={cn("mt-5 text-xs", theme === "light" ? "text-black/50" : "text-white/50")}>
-        Tip: click any item to open the same rich popup as the globe.
-      </div>
     </Modal>
   );
 }
 
-// ---------- Popup resolver ----------
+/* --------------------------- Rich Popup Resolver -------------------------- */
 function resolvePopupData(sel, data) {
   if (!sel) return null;
 
@@ -869,13 +763,16 @@ function resolvePopupData(sel, data) {
   return null;
 }
 
-// ---------- App ----------
+/* ----------------------------------- App ---------------------------------- */
 export default function App() {
-  const [theme, setTheme] = useState("dark");
-  const [contactOpen, setContactOpen] = useState(false);
-  const [selected, setSelected] = useState(null);
+  const [theme, setTheme] = useState("light");
   const [browseOpen, setBrowseOpen] = useState(false);
   const [browseMode, setBrowseMode] = useState("grid");
+  const [contactOpen, setContactOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const nameText = useBinaryReveal("Srinivasarao Galla", { durationMs: 1250, settleMs: 160 });
 
   const data = useMemo(() => {
     const skills = {
@@ -1001,14 +898,8 @@ export default function App() {
       },
     ];
 
-    const principles = [
-      "Automate the boring parts.",
-      "Prefer repeatability over heroics.",
-      "Observability is a feature.",
-      "Small changes, shipped often.",
-    ];
+    const principles = ["Automate the boring parts.", "Prefer repeatability over heroics.", "Observability is a feature.", "Small changes, shipped often."];
 
-    // globe cards
     const baseCards = [
       ...experiences.map((e) => ({
         id: e.id,
@@ -1043,16 +934,16 @@ export default function App() {
       })),
     ];
 
-    // duplicate lightly for density
+    // slightly denser but still spaced
     const expanded = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 2; i++) {
       for (let j = 0; j < baseCards.length; j++) {
         const b = baseCards[j];
         expanded.push({
           ...b,
           id: `${b.id}-${i}`,
-          w: 92 + ((i * 7 + j) % 6) * 5,
-          h: 62 + ((i * 11 + j) % 5) * 4,
+          w: 140 + ((i * 7 + j) % 4) * 10,
+          h: 96 + ((i * 11 + j) % 3) * 6,
         });
       }
     }
@@ -1063,13 +954,7 @@ export default function App() {
       { id: "social-email", baseId: "social-email", type: "link", title: "Email", company: "srinu.galla@gmail.com", logoText: "@", meta: "Send me an email", palette: pickPalette("Email"), url: "mailto:srinu.galla@gmail.com" },
     ];
 
-    return {
-      items: [...expanded.slice(0, 42), ...socials],
-      experiences,
-      education,
-      skills,
-      principles,
-    };
+    return { items: [...expanded.slice(0, 28), ...socials], experiences, education, skills, principles };
   }, []);
 
   const browseCards = useMemo(() => {
@@ -1084,20 +969,20 @@ export default function App() {
     return out;
   }, [data.items]);
 
+  const rootBg = theme === "light" ? "bg-[#f5f7fb] text-black" : "bg-black text-white";
+
   const reset = () => {
     setSelected(null);
     setContactOpen(false);
+    setBrowseOpen(false);
+    setAboutOpen(false);
   };
 
-  const rootBg = theme === "light" ? "bg-[#f5f7fb] text-black" : "bg-black text-white";
-
-  // ---------- Rich Popup UI ----------
   const DetailsModal = () => {
     const d = resolvePopupData(selected, data);
     if (!d) return null;
 
-    const sectionBase =
-      theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]";
+    const sectionBase = theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]";
     const label = theme === "light" ? "text-black/55" : "text-white/55";
     const text = theme === "light" ? "text-black/80" : "text-white/80";
     const subtle = theme === "light" ? "text-black/60" : "text-white/65";
@@ -1139,10 +1024,7 @@ export default function App() {
               href={d.url}
               target={d.url?.startsWith("http") ? "_blank" : undefined}
               rel={d.url?.startsWith("http") ? "noreferrer" : undefined}
-              className={cn(
-                "mt-4 inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold",
-                theme === "light" ? "bg-black text-white" : "bg-white text-black"
-              )}
+              className={cn("mt-4 inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold", theme === "light" ? "bg-black text-white" : "bg-white text-black")}
             >
               Open <ArrowUpRight className="h-4 w-4" />
             </a>
@@ -1162,7 +1044,6 @@ export default function App() {
     if (d.kind === "experience") {
       const exp = d.exp;
       if (!exp) return null;
-
       return (
         <div className="space-y-4">
           <Section title="EXPERIENCE">
@@ -1225,10 +1106,7 @@ export default function App() {
                 {d.usedIn.map((u) => (
                   <div
                     key={u.id}
-                    className={cn(
-                      "flex items-center justify-between rounded-xl border px-3 py-2",
-                      theme === "light" ? "border-black/10 bg-white/70" : "border-white/10 bg-black/25"
-                    )}
+                    className={cn("flex items-center justify-between rounded-xl border px-3 py-2", theme === "light" ? "border-black/10 bg-white/70" : "border-white/10 bg-black/25")}
                   >
                     <div>
                       <div className={cn("text-sm font-semibold", text)}>{u.company}</div>
@@ -1293,34 +1171,17 @@ export default function App() {
     <div className={cn("min-h-[100svh]", rootBg)}>
       <Starfield theme={theme} />
 
-      {/* center fog */}
-      <div
-        className={cn(
-          "pointer-events-none fixed inset-0 z-[1]",
-          theme === "light"
-            ? "bg-[radial-gradient(circle_at_50%_45%,rgba(0,0,0,0.10),rgba(255,255,255,0)_58%)]"
-            : "bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.05),rgba(0,0,0,0)_58%)]"
-        )}
-      />
-
       <Hud
-        onOpenContact={() => setContactOpen(true)}
-        onReset={reset}
-        viewMode={browseOpen ? browseMode : "globe"}
-        onToggleBrowse={() => setBrowseOpen(true)}
         theme={theme}
+        nameText={nameText}
+        onAbout={() => setAboutOpen(true)}
         onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+        onBrowse={() => setBrowseOpen(true)}
+        onReset={reset}
+        onContact={() => setContactOpen(true)}
       />
 
-      {!browseOpen && (
-        <Globe
-          items={data.items}
-          theme={theme}
-          onSelect={(it) => {
-            setSelected(it);
-          }}
-        />
-      )}
+      {!browseOpen && <Globe items={data.items} theme={theme} onSelect={(it) => setSelected(it)} />}
 
       <BrowseView
         open={browseOpen}
@@ -1335,15 +1196,58 @@ export default function App() {
         }}
       />
 
+      <Modal open={aboutOpen} onClose={() => setAboutOpen(false)} title="About" theme={theme}>
+        <div className="grid gap-4">
+          <div className={cn("rounded-2xl border p-4", theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]")}>
+            <div className={cn("text-xs font-semibold tracking-widest", theme === "light" ? "text-black/55" : "text-white/55")}>ABOUT ME</div>
+            <p className={cn("mt-3 text-sm leading-6", theme === "light" ? "text-black/70" : "text-white/75")}>
+              DevOps Engineer focused on reliable CI/CD, cloud infrastructure, Kubernetes operations, and practical automation.
+              I enjoy building systems that are observable, repeatable, and safe to ship.
+            </p>
+          </div>
+
+          <div className={cn("rounded-2xl border p-4", theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]")}>
+            <div className={cn("text-xs font-semibold tracking-widest", theme === "light" ? "text-black/55" : "text-white/55")}>OPPORTUNITIES</div>
+            <ul className={cn("mt-3 list-disc space-y-1 pl-5 text-sm", theme === "light" ? "text-black/70" : "text-white/75")}>
+              <li>DevOps / Platform Engineering roles</li>
+              <li>Cloud migration and IaC projects</li>
+              <li>CI/CD modernization & reliability improvements</li>
+              <li>Observability: metrics, alerts, dashboards</li>
+            </ul>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                setAboutOpen(false);
+                setContactOpen(true);
+              }}
+              className={cn("rounded-2xl px-4 py-2 text-sm font-semibold", theme === "light" ? "bg-black text-white" : "bg-white text-black")}
+            >
+              Contact me
+            </button>
+            <a
+              href="https://www.linkedin.com/in/sgalla/"
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                "rounded-2xl border px-4 py-2 text-sm font-semibold",
+                theme === "light" ? "border-black/10 bg-white text-black/80 hover:bg-black/[0.03]" : "border-white/12 bg-black/20 text-white/85 hover:bg-white/[0.03]"
+              )}
+            >
+              LinkedIn
+            </a>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={contactOpen} onClose={() => setContactOpen(false)} title="Contact" theme={theme}>
         <div className="grid gap-3">
           <a
             href="mailto:srinu.galla@gmail.com"
             className={cn(
               "flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition",
-              theme === "light"
-                ? "border-black/10 bg-black/[0.03] text-black/80 hover:bg-black/[0.06]"
-                : "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]"
+              theme === "light" ? "border-black/10 bg-black/[0.03] text-black/80 hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]"
             )}
           >
             <span className="flex items-center gap-2">
@@ -1358,9 +1262,7 @@ export default function App() {
             rel="noreferrer"
             className={cn(
               "flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition",
-              theme === "light"
-                ? "border-black/10 bg-black/[0.03] text-black/80 hover:bg-black/[0.06]"
-                : "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]"
+              theme === "light" ? "border-black/10 bg-black/[0.03] text-black/80 hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]"
             )}
           >
             <span className="flex items-center gap-2">
@@ -1375,9 +1277,7 @@ export default function App() {
             rel="noreferrer"
             className={cn(
               "flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition",
-              theme === "light"
-                ? "border-black/10 bg-black/[0.03] text-black/80 hover:bg-black/[0.06]"
-                : "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]"
+              theme === "light" ? "border-black/10 bg-black/[0.03] text-black/80 hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]"
             )}
           >
             <span className="flex items-center gap-2">
@@ -1390,9 +1290,7 @@ export default function App() {
             href="tel:+353866005678"
             className={cn(
               "flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition",
-              theme === "light"
-                ? "border-black/10 bg-black/[0.03] text-black/80 hover:bg-black/[0.06]"
-                : "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]"
+              theme === "light" ? "border-black/10 bg-black/[0.03] text-black/80 hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]"
             )}
           >
             <span className="flex items-center gap-2">
@@ -1400,10 +1298,6 @@ export default function App() {
             </span>
             <ExternalLink className="h-4 w-4" />
           </a>
-
-          <div className={cn("mt-1 text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>
-            Dublin 1, Ireland
-          </div>
         </div>
       </Modal>
 
@@ -1415,6 +1309,10 @@ export default function App() {
       >
         <DetailsModal />
       </Modal>
+
+      <div className={cn("pointer-events-none fixed bottom-3 right-4 z-40 text-[11px]", theme === "light" ? "text-black/40" : "text-white/45")}>
+        © {new Date().getFullYear()} Srinivasarao Galla
+      </div>
     </div>
   );
 }
