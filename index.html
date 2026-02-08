@@ -1,0 +1,1459 @@
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Srinivasarao Galla — DevOps Engineer</title>
+  <meta name="theme-color" content="#070A14" />
+  <meta name="description" content="Interactive one-page portfolio for Srinivasarao Galla — DevOps Engineer (CI/CD, Docker, Kubernetes, Terraform, Observability)." />
+
+  <style>
+    :root{
+      --bg0:#060714;
+      --bg1:#070A18;
+      --fg:#EEF3FF;
+      --muted:#A9B7D8;
+
+      --glass: rgba(255,255,255,.06);
+      --glass2: rgba(255,255,255,.03);
+      --line: rgba(170,195,255,.16);
+      --shadow: 0 40px 120px rgba(0,0,0,.55);
+
+      --a:#7DD3FC;   /* cyan */
+      --b:#A78BFA;   /* violet */
+      --c:#34D399;   /* green */
+      --w:#FBBF24;   /* amber */
+
+      --r: 22px;
+      --max: 1120px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      color:var(--fg);
+      background:
+        radial-gradient(1200px 800px at 10% 10%, rgba(125,211,252,.14), transparent 60%),
+        radial-gradient(1200px 800px at 90% 15%, rgba(167,139,250,.12), transparent 60%),
+        radial-gradient(1000px 900px at 60% 95%, rgba(52,211,153,.09), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      font: 15.5px/1.45 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      overflow-x:hidden;
+    }
+
+    a{color:inherit; text-decoration:none}
+    a:hover{opacity:.95}
+
+    /* ---------- Ambient FX canvas ---------- */
+    #fx{
+      position:fixed; inset:0;
+      width:100%; height:100%;
+      pointer-events:none;
+      z-index:0;
+      opacity:.65;
+    }
+
+    /* ---------- Top bar ---------- */
+    header{
+      position:fixed; inset:0 0 auto 0; height:72px;
+      z-index:50;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 14px;
+      border-bottom:1px solid var(--line);
+      background: linear-gradient(to bottom, rgba(6,7,20,.88), rgba(6,7,20,.50));
+      backdrop-filter: blur(12px);
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      min-width: 220px;
+    }
+    .badge{
+      width:12px;height:12px;border-radius:999px;
+      background: linear-gradient(135deg, var(--a), var(--b));
+      box-shadow: 0 0 34px rgba(125,211,252,.35);
+      flex:0 0 auto;
+    }
+    .brand b{letter-spacing:.2px}
+    .brand span{display:block; font-size:12px; color:var(--muted); margin-top:2px}
+
+    nav{
+      display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    nav a, nav button{
+      font-size:13px;
+      color:var(--muted);
+      padding:8px 10px;
+      border-radius:14px;
+      border:1px solid transparent;
+      background:transparent;
+      cursor:pointer;
+      transition: transform .12s ease, border-color .2s ease, background .2s ease, color .2s ease;
+      user-select:none;
+    }
+    nav a:hover, nav button:hover{
+      transform: translateY(-1px);
+      border-color: rgba(125,211,252,.28);
+      background: rgba(255,255,255,.02);
+      color: var(--fg);
+    }
+    nav a.active{
+      border-color: rgba(125,211,252,.42);
+      background: rgba(125,211,252,.10);
+      color: var(--fg);
+    }
+
+    .btn{
+      font-size:13px;
+      padding:9px 12px;
+      border-radius:16px;
+      border:1px solid rgba(125,211,252,.35);
+      background: rgba(125,211,252,.10);
+      color: var(--fg);
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      transition: transform .12s ease, border-color .2s ease, background .2s ease;
+      white-space:nowrap;
+    }
+    .btn:hover{transform: translateY(-1px); border-color: rgba(125,211,252,.58)}
+    .btn.secondary{
+      border-color: rgba(170,195,255,.16);
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+    }
+    .toggle{
+      display:inline-flex; align-items:center; gap:8px;
+      border:1px solid rgba(170,195,255,.16);
+      background: rgba(255,255,255,.03);
+      padding:8px 10px;
+      border-radius:14px;
+      color: var(--muted);
+    }
+    .toggle .led{
+      width:8px;height:8px;border-radius:999px;
+      background: rgba(170,195,255,.22);
+      box-shadow: 0 0 0 rgba(0,0,0,0);
+      transition: background .2s ease, box-shadow .2s ease;
+    }
+    .toggle.on .led{
+      background: rgba(52,211,153,.85);
+      box-shadow: 0 0 18px rgba(52,211,153,.25);
+    }
+
+    /* ---------- Progress ---------- */
+    .progress{
+      position:fixed; inset:72px 0 auto 0; height:2px; z-index:49;
+      background: rgba(170,195,255,.12);
+    }
+    .progress i{
+      display:block; height:100%; width:0%;
+      background: linear-gradient(90deg, var(--a), var(--b), var(--c));
+    }
+
+    /* ---------- Layout ---------- */
+    main{position:relative; z-index:1; padding-top:72px;}
+    .container{
+      width: min(var(--max), 100%);
+      margin:0 auto;
+      padding: 22px 14px 84px;
+    }
+
+    section{
+      padding: 54px 0 0;
+      scroll-margin-top: 92px;
+    }
+
+    /* ---------- Hero ---------- */
+    .hero{
+      padding: 26px 0 18px;
+    }
+    .heroGrid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 18px;
+      align-items:center;
+    }
+    @media (max-width: 980px){
+      .heroGrid{grid-template-columns: 1fr;}
+    }
+
+    .kicker{
+      display:flex; align-items:center; gap:10px;
+      color: var(--muted);
+      font-size:12px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+    }
+    .kdot{
+      width:7px;height:7px;border-radius:999px;
+      background: rgba(125,211,252,.85);
+      box-shadow: 0 0 18px rgba(125,211,252,.35);
+    }
+    h1{
+      margin: 10px 0 0;
+      font-size: clamp(34px, 4.6vw, 66px);
+      line-height:1.02;
+      letter-spacing:-0.03em;
+    }
+    .lead{
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 64ch;
+    }
+
+    .heroActions{
+      display:flex; gap:10px; flex-wrap:wrap;
+      align-items:center;
+      margin-top: 16px;
+    }
+
+    .chips{
+      display:flex; flex-wrap:wrap; gap:8px;
+      margin-top: 16px;
+    }
+    .chip{
+      font-size:12px;
+      padding: 6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(170,195,255,.16);
+      background: rgba(255,255,255,.03);
+      color: var(--fg);
+      white-space:nowrap;
+    }
+    .chip.good{border-color: rgba(52,211,153,.24); background: rgba(52,211,153,.08);}
+    .chip.note{border-color: rgba(167,139,250,.22); background: rgba(167,139,250,.07);}
+
+    /* ---------- Orb Card (interactive) ---------- */
+    .orbCard{
+      border:1px solid rgba(170,195,255,.16);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+      min-height: 360px;
+      transform-style: preserve-3d;
+    }
+    @media (max-width: 980px){
+      .orbCard{min-height: 320px;}
+    }
+    .orbTop{
+      position:absolute; inset: 14px 14px auto 14px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      z-index:2;
+      pointer-events:none;
+    }
+    .orbTitle{
+      font-size:12px;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      color: var(--muted);
+      display:flex; align-items:center; gap:10px;
+    }
+    .pill{
+      font-size:12px;
+      color: var(--muted);
+      border:1px solid rgba(170,195,255,.16);
+      background: rgba(255,255,255,.03);
+      padding: 6px 10px;
+      border-radius: 999px;
+      display:flex; align-items:center; gap:8px;
+      white-space:nowrap;
+    }
+    .pill i{
+      width:7px;height:7px;border-radius:999px; display:inline-block;
+      background: rgba(52,211,153,.85);
+      box-shadow: 0 0 18px rgba(52,211,153,.25);
+    }
+    #orb{
+      width:100%;
+      height:100%;
+      display:block;
+      cursor: grab;
+    }
+    #orb:active{cursor: grabbing;}
+    .orbHint{
+      position:absolute;
+      inset:auto 14px 12px 14px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      z-index:2;
+      color: rgba(169,183,216,.85);
+      font-size:12px;
+      pointer-events:none;
+    }
+    .hintPill{
+      display:flex; align-items:center; gap:8px;
+      border:1px solid rgba(170,195,255,.12);
+      background: rgba(0,0,0,.10);
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+    .mouse{
+      width:18px;height:26px;border-radius:999px;
+      border:1px solid rgba(170,195,255,.22);
+      position:relative;
+      background: rgba(255,255,255,.02);
+    }
+    .mouse::after{
+      content:"";
+      width:4px;height:6px;border-radius:999px;
+      background: rgba(125,211,252,.85);
+      position:absolute;
+      left:50%; top:6px;
+      transform: translateX(-50%);
+      animation: wheel 1.4s infinite ease-in-out;
+    }
+    @keyframes wheel{
+      0%{opacity:.2; transform: translate(-50%, 0px)}
+      40%{opacity:1}
+      100%{opacity:0; transform: translate(-50%, 10px)}
+    }
+
+    /* ---------- Section headings ---------- */
+    .sectionHead{
+      display:flex; align-items:flex-end; justify-content:space-between;
+      gap:12px; flex-wrap:wrap;
+      margin-bottom: 14px;
+    }
+    .sectionHead h2{
+      margin:0;
+      font-size: clamp(20px, 2.5vw, 34px);
+      letter-spacing:-0.01em;
+    }
+    .sectionHead p{
+      margin:0;
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 76ch;
+    }
+
+    /* ---------- Cards ---------- */
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 900px){
+      .grid2{grid-template-columns: 1fr;}
+    }
+    .card{
+      border:1px solid rgba(170,195,255,.16);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      position:relative;
+      overflow:hidden;
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:-1px -1px auto -1px; height:1px;
+      background: linear-gradient(90deg, transparent, rgba(125,211,252,.55), rgba(167,139,250,.45), transparent);
+      opacity:.8;
+    }
+    .meta{
+      display:flex; gap:10px; flex-wrap:wrap;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+    .bullets{margin:10px 0 0 18px; color: var(--muted);}
+    .bullets li{margin:6px 0}
+
+    /* ---------- Timeline (interactive) ---------- */
+    .timeline{
+      display:grid;
+      gap: 10px;
+    }
+    details{
+      border:1px solid rgba(170,195,255,.14);
+      background: rgba(255,255,255,.03);
+      border-radius: 18px;
+      padding: 10px 12px;
+    }
+    summary{
+      cursor:pointer;
+      list-style:none;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      outline:none;
+    }
+    summary::-webkit-details-marker{display:none}
+    .role{font-weight:750}
+    .when{color:var(--muted); font-size:12px; margin-top:2px}
+    .arrow{
+      width:10px;height:10px;border-right:2px solid rgba(170,195,255,.65); border-bottom:2px solid rgba(170,195,255,.65);
+      transform: rotate(45deg);
+      transition: transform .15s ease;
+      margin-left:8px;
+      flex:0 0 auto;
+    }
+    details[open] .arrow{transform: rotate(225deg)}
+
+    /* ---------- Projects (click -> modal) ---------- */
+    .projGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 980px){
+      .projGrid{grid-template-columns: 1fr;}
+    }
+    .projCard{
+      transform-style: preserve-3d;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      will-change: transform;
+      cursor:pointer;
+    }
+    .projCard:hover{
+      border-color: rgba(125,211,252,.30);
+      box-shadow: 0 55px 150px rgba(0,0,0,.65);
+    }
+    .projTop{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    }
+    .projTitle{display:flex; flex-direction:column; gap:2px}
+    .hint{color:var(--muted); font-size:13px}
+    .impact{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius: 16px;
+      border:1px solid rgba(170,195,255,.12);
+      background: rgba(0,0,0,.10);
+      color: var(--muted);
+      font-size: 13px;
+      display:flex; gap:10px; flex-wrap:wrap;
+    }
+    .impact b{color:var(--fg); font-weight:700}
+    .sep{opacity:.6}
+
+    /* ---------- Reveal animations ---------- */
+    .reveal{
+      opacity:0;
+      transform: translateY(14px);
+      filter: blur(2px);
+      transition: opacity .7s ease, transform .7s ease, filter .7s ease;
+    }
+    .reveal.in{
+      opacity:1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+
+    /* ---------- Modal ---------- */
+    .modal{
+      position:fixed; inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:100;
+      padding: 16px;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(8px);
+    }
+    .modal.open{display:flex;}
+    .modalPanel{
+      width:min(920px, 100%);
+      border-radius: 24px;
+      border:1px solid rgba(170,195,255,.18);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      box-shadow: 0 70px 200px rgba(0,0,0,.75);
+      overflow:hidden;
+      position:relative;
+    }
+    .modalHead{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      padding: 14px 14px 12px;
+      border-bottom: 1px solid rgba(170,195,255,.12);
+      background: rgba(0,0,0,.12);
+    }
+    .modalHead h3{margin:0; font-size: 16px}
+    .modalHead .sub{color: var(--muted); font-size: 13px; margin-top: 4px}
+    .modalClose{
+      border:1px solid rgba(170,195,255,.18);
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+      padding: 8px 10px;
+      border-radius: 14px;
+      cursor:pointer;
+      transition: transform .12s ease, border-color .2s ease, background .2s ease, color .2s ease;
+      flex:0 0 auto;
+    }
+    .modalClose:hover{
+      transform: translateY(-1px);
+      border-color: rgba(125,211,252,.35);
+      background: rgba(125,211,252,.06);
+      color: var(--fg);
+    }
+    .modalBody{
+      padding: 14px;
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 14px;
+    }
+    @media (max-width: 900px){
+      .modalBody{grid-template-columns: 1fr;}
+    }
+    .callouts{
+      display:flex; flex-wrap:wrap; gap:8px; margin-top: 10px;
+    }
+    .modalFoot{
+      padding: 12px 14px 14px;
+      border-top: 1px solid rgba(170,195,255,.12);
+      display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;
+      background: rgba(0,0,0,.10);
+    }
+
+    /* ---------- Footer ---------- */
+    footer{
+      padding: 54px 0 70px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align:center;
+    }
+
+    /* ---------- Reduced motion ---------- */
+    @media (prefers-reduced-motion: reduce){
+      html{scroll-behavior:auto}
+      .mouse::after{animation:none}
+      .projCard{transition:none}
+      nav a, nav button, .btn{transition:none}
+      .reveal{transition:none}
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="fx"></canvas>
+
+  <header>
+    <div class="brand">
+      <span class="badge"></span>
+      <div>
+        <b>Srinivasarao Galla</b>
+        <span>DevOps Engineer · Dublin, Ireland</span>
+      </div>
+    </div>
+
+    <nav aria-label="Primary">
+      <a href="#about">About</a>
+      <a href="#skills">Skills</a>
+      <a href="#timeline">Timeline</a>
+      <a href="#projects">Projects</a>
+      <a href="#contact">Contact</a>
+      <a class="btn secondary" href="https://github.com/srinugalla" target="_blank" rel="noreferrer">GitHub</a>
+      <a class="btn secondary" href="https://www.linkedin.com/in/sgalla/" target="_blank" rel="noreferrer">LinkedIn</a>
+      <button id="soundToggle" class="toggle" title="Optional UI chimes">
+        <span class="led" aria-hidden="true"></span>
+        <span id="soundLabel">Sound: Off</span>
+      </button>
+    </nav>
+  </header>
+
+  <div class="progress"><i id="bar"></i></div>
+
+  <main>
+    <div class="container">
+
+      <!-- HERO / ABOUT -->
+      <section class="hero" id="about">
+        <div class="heroGrid">
+          <div>
+            <div class="kicker"><span class="kdot"></span><span>Interactive one-page portfolio</span></div>
+            <h1 class="reveal">Ship faster. Break less. See everything.</h1>
+            <p class="lead reveal" style="transition-delay:.06s">
+              I’m a DevOps Engineer focused on <b>CI/CD</b>, <b>container delivery</b>, and <b>Kubernetes fundamentals</b>.
+              I build practical automation that teams can run today — and scale safely tomorrow.
+            </p>
+
+            <div class="heroActions reveal" style="transition-delay:.12s">
+              <a class="btn" href="mailto:srinu.galla@gmail.com">Email</a>
+              <a class="btn secondary" href="#projects">See projects</a>
+              <a class="btn secondary" href="#timeline">Experience</a>
+            </div>
+
+            <div class="chips reveal" style="transition-delay:.18s">
+              <span class="chip good">Jenkins CI/CD</span>
+              <span class="chip good">Docker / Compose</span>
+              <span class="chip good">Kubernetes</span>
+              <span class="chip note">Terraform</span>
+              <span class="chip">Prometheus/Grafana</span>
+              <span class="chip">AWS fundamentals</span>
+            </div>
+          </div>
+
+          <div class="orbCard reveal" style="transition-delay:.10s" id="orbCard">
+            <div class="orbTop">
+              <div class="orbTitle"><span class="badge" style="width:10px;height:10px"></span><span>Ops Orb</span></div>
+              <div class="pill"><i></i><span>drag · hover</span></div>
+            </div>
+
+            <canvas id="orb" aria-label="Interactive 3D orb"></canvas>
+
+            <div class="orbHint">
+              <span>CI/CD → Containers → K8s → Observability</span>
+              <span class="hintPill"><span class="mouse"></span><span>scroll</span></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SKILLS -->
+      <section id="skills">
+        <div class="sectionHead">
+          <h2 class="reveal">Skills</h2>
+          <p class="reveal" style="transition-delay:.06s">
+            Job-ready DevOps scope for ~2 years: automation, container workflows, Kubernetes basics, and visibility.
+          </p>
+        </div>
+
+        <div class="grid2">
+          <div class="card reveal">
+            <h3 style="margin:0 0 6px">Core</h3>
+            <div class="meta"><span>CI/CD</span><span>·</span><span>Docker</span><span>·</span><span>Kubernetes</span><span>·</span><span>IaC</span></div>
+            <div class="chips">
+              <span class="chip good">Jenkins</span>
+              <span class="chip good">Docker</span>
+              <span class="chip good">Kubernetes (Deployments/Services)</span>
+              <span class="chip note">Terraform</span>
+              <span class="chip">Linux</span>
+              <span class="chip">Git</span>
+            </div>
+          </div>
+
+          <div class="card reveal" style="transition-delay:.06s">
+            <h3 style="margin:0 0 6px">How I work</h3>
+            <div class="meta"><span>Reliability</span><span>·</span><span>Repeatability</span><span>·</span><span>Visibility</span></div>
+            <ul class="bullets">
+              <li>Pipeline stages with clear gates (build/test/package/deploy)</li>
+              <li>Environment consistency to reduce “works on my machine” issues</li>
+              <li>Monitoring patterns that shorten detection & triage time</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- TIMELINE -->
+      <section id="timeline">
+        <div class="sectionHead">
+          <h2 class="reveal">Timeline</h2>
+          <p class="reveal" style="transition-delay:.06s">
+            Clean timeline. Expand items for details.
+          </p>
+        </div>
+
+        <div class="timeline reveal" style="transition-delay:.12s">
+          <details open>
+            <summary>
+              <div>
+                <div class="role">DevOps Engineer — FullScale.ie (Dublin)</div>
+                <div class="when">June 2023 — Present</div>
+              </div>
+              <div class="arrow"></div>
+            </summary>
+            <ul class="bullets">
+              <li>Built/maintained Jenkins pipelines and deployment workflows (pipeline-as-code).</li>
+              <li>Used Docker/Compose to standardize environments and reduce setup friction.</li>
+              <li>Worked with Kubernetes fundamentals and operational visibility (dashboards/metrics patterns).</li>
+            </ul>
+          </details>
+
+          <details>
+            <summary>
+              <div>
+                <div class="role">Project Coordinator — Chillcart Ltd. (Dublin)</div>
+                <div class="when">June 2018 — June 2023</div>
+              </div>
+              <div class="arrow"></div>
+            </summary>
+            <ul class="bullets">
+              <li>Coordinated delivery across stakeholders; tracked execution and risks.</li>
+              <li>Built strong planning + follow-through habits that transfer well into DevOps.</li>
+            </ul>
+          </details>
+
+          <details>
+            <summary>
+              <div>
+                <div class="role">Product & Business Development Manager — LycaTel (Ireland)</div>
+                <div class="when">May 2014 — June 2018</div>
+              </div>
+              <div class="arrow"></div>
+            </summary>
+            <ul class="bullets">
+              <li>Supported product coordination/testing and rollout issue-resolution.</li>
+              <li>Managed enterprise accounts and performance reporting.</li>
+            </ul>
+          </details>
+
+          <details>
+            <summary>
+              <div>
+                <div class="role">Business Development Manager — LycaTel Distribution (UK)</div>
+                <div class="when">May 2012 — May 2014</div>
+              </div>
+              <div class="arrow"></div>
+            </summary>
+            <ul class="bullets">
+              <li>Territory growth, training, and customer relationship management.</li>
+            </ul>
+          </details>
+
+          <details>
+            <summary>
+              <div>
+                <div class="role">Education — MBA (Marketing), University of Wales Trinity Saint David</div>
+                <div class="when">2010 — 2011</div>
+              </div>
+              <div class="arrow"></div>
+            </summary>
+            <ul class="bullets">
+              <li>Business communication + strategy foundation that helps bridge tech and outcomes.</li>
+            </ul>
+          </details>
+
+          <details>
+            <summary>
+              <div>
+                <div class="role">Education — BSc (Maths/Physics/Chemistry), A.N. University</div>
+                <div class="when">2004–05, 2007–09</div>
+              </div>
+              <div class="arrow"></div>
+            </summary>
+            <ul class="bullets">
+              <li>Analytical thinking: debugging, systems reasoning, and learning speed.</li>
+            </ul>
+          </details>
+
+          <details>
+            <summary>
+              <div>
+                <div class="role">Education — D.Ed, D.I.E.T Krishna District</div>
+                <div class="when">2005 — 2007</div>
+              </div>
+              <div class="arrow"></div>
+            </summary>
+            <ul class="bullets">
+              <li>Structured communication — surprisingly useful for docs and cross-team alignment.</li>
+            </ul>
+          </details>
+        </div>
+      </section>
+
+      <!-- PROJECTS -->
+      <section id="projects">
+        <div class="sectionHead">
+          <h2 class="reveal">Projects</h2>
+          <p class="reveal" style="transition-delay:.06s">
+            Click a project for a clean “case study” overlay (links + metrics).
+          </p>
+        </div>
+
+        <div class="projGrid">
+          <article class="card projCard reveal" data-tilt data-project="thewall">
+            <div class="projTop">
+              <div class="projTitle">
+                <h3 style="margin:0">thewall.life</h3>
+                <div class="hint">DevOps-first · Docker Compose + pipeline-as-code</div>
+              </div>
+              <span class="chip note">CI/CD</span>
+            </div>
+            <p style="margin:10px 0 0; color:var(--muted)">
+              Multi-service app with health checks and automated build/test/image/deploy steps.
+            </p>
+            <div class="impact">
+              <span><b>Pipeline:</b> ~4–7 min</span><span class="sep">·</span>
+              <span><b>Manual steps:</b> ~6 → 1</span><span class="sep">·</span>
+              <span><b>Rollback:</b> ~2–4 min</span>
+            </div>
+          </article>
+
+          <article class="card projCard reveal" style="transition-delay:.06s" data-tilt data-project="k8smongo">
+            <div class="projTop">
+              <div class="projTitle">
+                <h3 style="margin:0">Kubernetes-Mongo</h3>
+                <div class="hint">K8s fundamentals · Secrets/ConfigMaps/Services</div>
+              </div>
+              <span class="chip good">K8s</span>
+            </div>
+            <p style="margin:10px 0 0; color:var(--muted)">
+              MongoDB + Mongo Express deployed on Minikube with clean config separation.
+            </p>
+            <div class="impact">
+              <span><b>Spin up:</b> ~2–5 min</span><span class="sep">·</span>
+              <span><b>Repro:</b> 1 apply</span><span class="sep">·</span>
+              <span><b>Config:</b> separated</span>
+            </div>
+          </article>
+
+          <article class="card projCard reveal" style="transition-delay:.02s" data-tilt data-project="moodle">
+            <div class="projTop">
+              <div class="projTitle">
+                <h3 style="margin:0">moodle-docker</h3>
+                <div class="hint">Containerization · repeatable environment</div>
+              </div>
+              <span class="chip">Docker</span>
+            </div>
+            <p style="margin:10px 0 0; color:var(--muted)">
+              Docker workflow to reduce setup time and improve consistency across machines.
+            </p>
+            <div class="impact">
+              <span><b>Setup:</b> ~20–30 → ~5–10 min</span><span class="sep">·</span>
+              <span><b>Recovery:</b> ~1–2 min</span><span class="sep">·</span>
+              <span><b>Next:</b> hardening</span>
+            </div>
+          </article>
+
+          <article class="card projCard reveal" style="transition-delay:.08s" data-tilt data-project="slicex">
+            <div class="projTop">
+              <div class="projTitle">
+                <h3 style="margin:0">The Slice X</h3>
+                <div class="hint">Next.js + Supabase + Mapbox · Vercel</div>
+              </div>
+              <span class="chip note">Full-stack</span>
+            </div>
+            <p style="margin:10px 0 0; color:var(--muted)">
+              Map-enabled marketplace with pagination for responsive browsing and fast deploys.
+            </p>
+            <div class="impact">
+              <span><b>Deploy:</b> ~1–3 min</span><span class="sep">·</span>
+              <span><b>Goal:</b> &lt; ~2.5MB load</span><span class="sep">·</span>
+              <span><b>UX:</b> list+map</span>
+            </div>
+          </article>
+        </div>
+
+        <div style="margin-top:14px" class="reveal">
+          <a class="btn secondary" href="https://github.com/srinugalla/srinugalla" target="_blank" rel="noreferrer">
+            Open my profile repo
+          </a>
+        </div>
+      </section>
+
+      <!-- CONTACT -->
+      <section id="contact">
+        <div class="sectionHead">
+          <h2 class="reveal">Contact</h2>
+          <p class="reveal" style="transition-delay:.06s">Fastest path: email. Also on GitHub + LinkedIn.</p>
+        </div>
+
+        <div class="grid2">
+          <div class="card reveal">
+            <h3 style="margin:0 0 6px">Get in touch</h3>
+            <div class="meta"><span>Dublin, Ireland</span><span>·</span><span><a href="mailto:srinu.galla@gmail.com">srinu.galla@gmail.com</a></span></div>
+            <div class="chips">
+              <a class="btn" href="mailto:srinu.galla@gmail.com">Email</a>
+              <a class="btn secondary" href="https://github.com/srinugalla" target="_blank" rel="noreferrer">GitHub</a>
+              <a class="btn secondary" href="https://www.linkedin.com/in/sgalla/" target="_blank" rel="noreferrer">LinkedIn</a>
+            </div>
+          </div>
+
+          <div class="card reveal" style="transition-delay:.06s">
+            <h3 style="margin:0 0 6px">What I’m looking for</h3>
+            <p style="margin-top:8px; color:var(--muted)">
+              DevOps roles where I can improve build/release reliability, reduce manual work with automation,
+              and strengthen monitoring/visibility.
+            </p>
+            <div class="chips">
+              <span class="chip good">CI/CD</span>
+              <span class="chip good">Docker</span>
+              <span class="chip good">Kubernetes</span>
+              <span class="chip note">Terraform</span>
+            </div>
+          </div>
+        </div>
+
+        <footer class="reveal" style="transition-delay:.10s">
+          © <span id="year"></span> Srinivasarao Galla · single-page interactive portfolio
+        </footer>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Project Modal -->
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Project details">
+    <div class="modalPanel">
+      <div class="modalHead">
+        <div>
+          <h3 id="mTitle">Project</h3>
+          <div class="sub" id="mSub">Details</div>
+        </div>
+        <button class="modalClose" id="mClose">Close</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="card" style="box-shadow:none">
+          <h3 style="margin:0 0 6px">Overview</h3>
+          <p id="mDesc" style="margin:0; color:var(--muted)"></p>
+
+          <div class="impact" id="mImpact"></div>
+
+          <div class="callouts" id="mChips"></div>
+        </div>
+
+        <div class="card" style="box-shadow:none">
+          <h3 style="margin:0 0 6px">What I demonstrated</h3>
+          <ul class="bullets" id="mBullets"></ul>
+        </div>
+      </div>
+
+      <div class="modalFoot">
+        <a class="btn secondary" id="mRepo" target="_blank" rel="noreferrer">GitHub</a>
+        <a class="btn secondary" id="mReadme" target="_blank" rel="noreferrer">README</a>
+        <a class="btn" id="mLive" target="_blank" rel="noreferrer" style="display:none">Live</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* -----------------------------------------------------------
+       Small premium touches:
+       - Intersection reveal
+       - Active nav
+       - Progress bar
+       - Tilt cards
+       - Modal for projects
+       - Ambient canvas FX
+       - Interactive orb canvas
+       - Optional chime toggle
+    ----------------------------------------------------------- */
+
+    // Smooth anchor scroll
+    document.querySelectorAll('a[href^="#"]').forEach(a=>{
+      a.addEventListener('click', (e)=>{
+        const id = a.getAttribute('href');
+        const el = document.querySelector(id);
+        if (!el) return;
+        e.preventDefault();
+        el.scrollIntoView({behavior:'smooth', block:'start'});
+      });
+    });
+
+    // Footer year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Progress bar
+    const bar = document.getElementById('bar');
+    function updateProgress(){
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - doc.clientHeight;
+      const pct = max <= 0 ? 0 : (doc.scrollTop / max) * 100;
+      bar.style.width = pct.toFixed(2) + '%';
+    }
+    window.addEventListener('scroll', updateProgress, {passive:true});
+    updateProgress();
+
+    // Reveal animations
+    const reveals = Array.from(document.querySelectorAll('.reveal'));
+    const rio = new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if (e.isIntersecting) e.target.classList.add('in');
+      });
+    }, {threshold: 0.15});
+    reveals.forEach(el=>rio.observe(el));
+
+    // Active nav (intersection)
+    const navLinks = Array.from(document.querySelectorAll('nav a[href^="#"]'))
+      .filter(a => !a.classList.contains('btn'));
+    const sections = navLinks.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+
+    const sio = new IntersectionObserver((entries)=>{
+      const vis = entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
+      if (!vis) return;
+      const id = "#" + vis.target.id;
+      navLinks.forEach(a=>a.classList.toggle('active', a.getAttribute('href') === id));
+    }, {threshold:[0.35,0.55,0.7]});
+    sections.forEach(s=>sio.observe(s));
+
+    // Tilt cards (projects only)
+    const tiltCards = document.querySelectorAll('[data-tilt]');
+    tiltCards.forEach(card=>{
+      let rect;
+      function onMove(ev){
+        rect = rect || card.getBoundingClientRect();
+        const x = (ev.clientX - rect.left) / rect.width;
+        const y = (ev.clientY - rect.top) / rect.height;
+        const rx = (0.5 - y) * 8;
+        const ry = (x - 0.5) * 12;
+        card.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-2px)`;
+      }
+      function onLeave(){
+        rect = null;
+        card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
+      }
+      card.addEventListener('mousemove', onMove);
+      card.addEventListener('mouseleave', onLeave);
+    });
+
+    /* ---------------- Modal ---------------- */
+    const modal = document.getElementById('modal');
+    const mClose = document.getElementById('mClose');
+    const mTitle = document.getElementById('mTitle');
+    const mSub = document.getElementById('mSub');
+    const mDesc = document.getElementById('mDesc');
+    const mImpact = document.getElementById('mImpact');
+    const mChips = document.getElementById('mChips');
+    const mBullets = document.getElementById('mBullets');
+    const mRepo = document.getElementById('mRepo');
+    const mReadme = document.getElementById('mReadme');
+    const mLive = document.getElementById('mLive');
+
+    const PROJECTS = {
+      thewall: {
+        title: "thewall.life",
+        sub: "DevOps-first · Docker Compose + pipeline-as-code",
+        desc: "A multi-service application built to demonstrate practical CI/CD automation, repeatable environments, and release-friendly workflows.",
+        impact: [
+          ["Pipeline", "~4–7 min end-to-end"],
+          ["Manual steps", "~6 → 1"],
+          ["Rollback", "~2–4 min (redeploy previous image)"],
+        ],
+        chips: ["Jenkinsfile", "Docker Compose", "Health checks", "Stage gates", "Docs-first"],
+        bullets: [
+          "Pipeline stages: build → test → package → deploy (clear gates).",
+          "Repeatable dev/test environment using Compose.",
+          "Basic rollback strategy via image versioning.",
+        ],
+        repo: "https://github.com/srinugalla/thewall.life",
+        readme: "https://github.com/srinugalla/thewall.life#readme",
+        live: null
+      },
+      k8smongo: {
+        title: "Kubernetes-Mongo",
+        sub: "K8s fundamentals · Secrets/ConfigMaps/Services",
+        desc: "A Kubernetes learning project showing how to deploy MongoDB + Mongo Express with proper configuration separation and reproducibility.",
+        impact: [
+          ["Spin up", "~2–5 min (Minikube)"],
+          ["Repro", "1 apply workflow"],
+          ["Config", "Secrets/ConfigMaps separated"],
+        ],
+        chips: ["Deployments", "Services", "Secrets", "ConfigMaps", "Minikube"],
+        bullets: [
+          "Clear separation of configuration and credentials.",
+          "Service exposure + internal wiring fundamentals.",
+          "Good base for expanding into Helm, ingress, and persistence.",
+        ],
+        repo: "https://github.com/srinugalla/Kubernetes-Mongo",
+        readme: "https://github.com/srinugalla/Kubernetes-Mongo#readme",
+        live: null
+      },
+      moodle: {
+        title: "moodle-docker",
+        sub: "Containerization · repeatable setup",
+        desc: "Containerized Moodle to reduce setup time and improve consistency across machines—useful for demos, labs, and dev/test workflows.",
+        impact: [
+          ["Setup", "~20–30 min → ~5–10 min"],
+          ["Consistency", "Same config across machines"],
+          ["Recovery", "~1–2 min restart"],
+        ],
+        chips: ["Docker", "Repeatable envs", "Documentation", "Automation hooks"],
+        bullets: [
+          "Repeatable local setup for faster onboarding.",
+          "Cleaner environment parity between dev and test.",
+          "Clear next step: production hardening + persistence strategy.",
+        ],
+        repo: "https://github.com/srinugalla/moodle-docker",
+        readme: "https://github.com/srinugalla/moodle-docker#readme",
+        live: null
+      },
+      slicex: {
+        title: "The Slice X",
+        sub: "Next.js + Supabase + Mapbox · Vercel",
+        desc: "A deployed web app that demonstrates full-stack delivery, deployment workflows, and performance-conscious UI patterns.",
+        impact: [
+          ["Deploy", "~1–3 min (Vercel)"],
+          ["Goal", "< ~2.5MB initial load"],
+          ["UX", "Pagination for large datasets"],
+        ],
+        chips: ["Next.js", "Supabase", "Mapbox", "Vercel", "Pagination"],
+        bullets: [
+          "Clean deployment workflow and repeatable builds.",
+          "Front-end performance considerations (pagination, efficient views).",
+          "Good complement to DevOps projects: shows end-to-end shipping.",
+        ],
+        repo: "https://github.com/srinugalla/the-slice-x",
+        readme: "https://github.com/srinugalla/the-slice-x#readme",
+        live: "https://www.theslicex.com"
+      }
+    };
+
+    function openModal(key){
+      const p = PROJECTS[key];
+      if (!p) return;
+
+      mTitle.textContent = p.title;
+      mSub.textContent = p.sub;
+      mDesc.textContent = p.desc;
+
+      // impact
+      mImpact.innerHTML = "";
+      p.impact.forEach(([k,v], i)=>{
+        const span = document.createElement('span');
+        span.innerHTML = `<b>${k}:</b> ${v}${i < p.impact.length-1 ? `<span class="sep"> ·</span>` : ""}`;
+        mImpact.appendChild(span);
+      });
+
+      // chips
+      mChips.innerHTML = "";
+      p.chips.forEach(t=>{
+        const s = document.createElement('span');
+        s.className = 'chip';
+        s.textContent = t;
+        mChips.appendChild(s);
+      });
+
+      // bullets
+      mBullets.innerHTML = "";
+      p.bullets.forEach(t=>{
+        const li = document.createElement('li');
+        li.textContent = t;
+        mBullets.appendChild(li);
+      });
+
+      mRepo.href = p.repo;
+      mReadme.href = p.readme;
+
+      if (p.live){
+        mLive.style.display = '';
+        mLive.href = p.live;
+      } else {
+        mLive.style.display = 'none';
+      }
+
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      chime(); // subtle confirmation (if enabled)
+    }
+
+    function closeModal(){
+      modal.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('[data-project]').forEach(card=>{
+      card.addEventListener('click', ()=>openModal(card.dataset.project));
+      card.addEventListener('keydown', (e)=>{
+        if (e.key === 'Enter' || e.key === ' ') openModal(card.dataset.project);
+      });
+      card.tabIndex = 0;
+      card.setAttribute('role','button');
+      card.setAttribute('aria-label','Open project details');
+    });
+
+    mClose.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e)=>{ if (e.target === modal) closeModal(); });
+    window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(); });
+
+    /* ---------------- Optional Sound (tasteful chime) ---------------- */
+    const soundToggle = document.getElementById('soundToggle');
+    const soundLabel = document.getElementById('soundLabel');
+    let soundOn = false;
+    let audioCtx = null;
+
+    function ensureAudio(){
+      if (!audioCtx){
+        const AC = window.AudioContext || window.webkitAudioContext;
+        audioCtx = AC ? new AC() : null;
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+      return audioCtx;
+    }
+
+    function chime(){
+      if (!soundOn) return;
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+      master.connect(ctx.destination);
+
+      function tone(freq, t0, dur){
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(1400, now + t0);
+
+        o.type = 'sine';
+        o.frequency.setValueAtTime(freq, now + t0);
+
+        g.gain.setValueAtTime(0.0001, now + t0);
+        g.gain.exponentialRampToValueAtTime(0.12, now + t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + t0 + dur);
+
+        o.connect(lp); lp.connect(g); g.connect(master);
+        o.start(now + t0);
+        o.stop(now + t0 + dur + 0.02);
+      }
+
+      tone(784, 0.00, 0.14);
+      tone(988, 0.10, 0.18);
+    }
+
+    soundToggle.addEventListener('click', ()=>{
+      soundOn = !soundOn;
+      soundToggle.classList.toggle('on', soundOn);
+      soundLabel.textContent = 'Sound: ' + (soundOn ? 'On' : 'Off');
+      if (soundOn){ ensureAudio(); chime(); }
+    });
+
+    /* ---------------- Ambient FX canvas ---------------- */
+    const fx = document.getElementById('fx');
+    const fxc = fx.getContext('2d', {alpha:true});
+    let FW=0,FH=0,FDPR=Math.min(window.devicePixelRatio||1,2);
+
+    function fxResize(){
+      FW = window.innerWidth;
+      FH = window.innerHeight;
+      fx.width = Math.floor(FW*FDPR);
+      fx.height = Math.floor(FH*FDPR);
+      fx.style.width = FW+'px';
+      fx.style.height = FH+'px';
+      fxc.setTransform(FDPR,0,0,FDPR,0,0);
+    }
+    window.addEventListener('resize', fxResize);
+    fxResize();
+
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const stars = Array.from({length: 90}, ()=>({
+      x: Math.random()*FW,
+      y: Math.random()*FH,
+      r: 0.6 + Math.random()*1.6,
+      vx: (-0.18 + Math.random()*0.36),
+      vy: (-0.12 + Math.random()*0.24),
+      a: 0.10 + Math.random()*0.35
+    }));
+
+    function fxTick(){
+      if (prefersReduced) return;
+      fxc.clearRect(0,0,FW,FH);
+
+      const scroll = document.documentElement.scrollTop || 0;
+      const max = (document.documentElement.scrollHeight - document.documentElement.clientHeight) || 1;
+      const drift = Math.min(scroll / max, 1);
+
+      // subtle parallax drift
+      for (let i=0;i<stars.length;i++){
+        const s = stars[i];
+        s.x += s.vx * (0.6 + drift);
+        s.y += s.vy * (0.6 + drift);
+
+        if (s.x < -20) s.x = FW+20;
+        if (s.x > FW+20) s.x = -20;
+        if (s.y < -20) s.y = FH+20;
+        if (s.y > FH+20) s.y = -20;
+
+        fxc.globalAlpha = s.a;
+        fxc.fillStyle = 'rgba(210,230,255,.9)';
+        fxc.beginPath();
+        fxc.arc(s.x, s.y, s.r, 0, Math.PI*2);
+        fxc.fill();
+      }
+
+      requestAnimationFrame(fxTick);
+    }
+    requestAnimationFrame(fxTick);
+
+    /* ---------------- Interactive Orb ----------------
+       A premium “tech orb”: 3D points + soft connections + drag rotation.
+    --------------------------------------------------- */
+    const orb = document.getElementById('orb');
+    const oc = orb.getContext('2d', {alpha:true});
+
+    let OW=0,OH=0,ODPR=Math.min(window.devicePixelRatio||1,2);
+    function orbResize(){
+      const r = orb.getBoundingClientRect();
+      OW = Math.max(260, Math.floor(r.width));
+      OH = Math.max(260, Math.floor(r.height));
+      orb.width = Math.floor(OW*ODPR);
+      orb.height = Math.floor(OH*ODPR);
+      oc.setTransform(ODPR,0,0,ODPR,0,0);
+    }
+    window.addEventListener('resize', orbResize);
+    orbResize();
+
+    // Sphere points
+    const P = [];
+    function add(lat, lon, kind){
+      const x = Math.cos(lat) * Math.cos(lon);
+      const y = Math.sin(lat);
+      const z = Math.cos(lat) * Math.sin(lon);
+      P.push({x,y,z, kind});
+    }
+    // rings (structured)
+    const rings = 16, seg = 36;
+    for (let i=0;i<rings;i++){
+      const t = i/(rings-1);
+      const lat = (t - 0.5) * Math.PI * 0.92;
+      for (let j=0;j<seg;j++){
+        const lon = (j/seg)*Math.PI*2 - Math.PI;
+        add(lat, lon, 'grid');
+      }
+    }
+    // sprinkle
+    for (let k=0;k<360;k++){
+      const u = Math.random(), v = Math.random();
+      const lat = Math.asin(2*u - 1);
+      const lon = v*Math.PI*2 - Math.PI;
+      add(lat, lon, 'rand');
+    }
+
+    // Rotation + drag
+    let rY = 0.9, rX = -0.25;
+    let auto = 0.0032;
+    let dragging = false;
+    let lx=0, ly=0;
+    let ix=0, iy=0;
+
+    function pointer(e){
+      const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+      return {x:p.clientX, y:p.clientY};
+    }
+    function down(e){
+      dragging = true;
+      const p = pointer(e);
+      lx=p.x; ly=p.y;
+      chime();
+    }
+    function move(e){
+      if (!dragging) return;
+      const p = pointer(e);
+      const dx = p.x - lx;
+      const dy = p.y - ly;
+      lx=p.x; ly=p.y;
+
+      const s = 0.0043;
+      rY += dx*s;
+      rX += dy*s;
+      rX = Math.max(-0.95, Math.min(0.95, rX));
+      ix = dx*s;
+      iy = dy*s;
+    }
+    function up(){ dragging=false; }
+
+    orb.addEventListener('pointerdown', down);
+    window.addEventListener('pointermove', move, {passive:true});
+    window.addEventListener('pointerup', up, {passive:true});
+    // touch fallback
+    orb.addEventListener('touchstart', (e)=>{ dragging=true; const p=pointer(e); lx=p.x; ly=p.y; }, {passive:true});
+    orb.addEventListener('touchmove', (e)=>move(e), {passive:true});
+    orb.addEventListener('touchend', ()=>{ dragging=false; }, {passive:true});
+
+    function rotYp(p,a){
+      const ca=Math.cos(a), sa=Math.sin(a);
+      return {x:p.x*ca + p.z*sa, y:p.y, z:-p.x*sa + p.z*ca, kind:p.kind};
+    }
+    function rotXp(p,a){
+      const ca=Math.cos(a), sa=Math.sin(a);
+      return {x:p.x, y:p.y*ca - p.z*sa, z:p.y*sa + p.z*ca, kind:p.kind};
+    }
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+    function orbDraw(){
+      oc.clearRect(0,0,OW,OH);
+      const cx=OW/2, cy=OH/2;
+      const R=Math.min(OW,OH)*0.36;
+
+      // glow backdrop
+      const g=oc.createRadialGradient(cx,cy,R*0.2,cx,cy,R*1.25);
+      g.addColorStop(0, 'rgba(125,211,252,0.10)');
+      g.addColorStop(0.55, 'rgba(167,139,250,0.06)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      oc.fillStyle=g;
+      oc.beginPath(); oc.arc(cx,cy,R*1.25,0,Math.PI*2); oc.fill();
+
+      if (!dragging && !prefersReduced){
+        rY += auto;
+        rY += ix;
+        rX += iy;
+        ix *= 0.92;
+        iy *= 0.92;
+        rX = clamp(rX, -0.95, 0.95);
+      }
+
+      // project
+      const proj=[];
+      for (const p of P){
+        let q=rotYp(p,rY); q=rotXp(q,rX);
+        const depth = (q.z + 1.35);
+        const scale = 1/depth;
+
+        const x = cx + q.x * R * scale * 1.8;
+        const y = cy + q.y * R * scale * 1.8;
+
+        const a = clamp((q.z + 1) * 0.55, 0, 1);
+        const base = (q.kind==='grid') ? 1.1 : 0.9;
+        const rr = base + a*1.7;
+
+        proj.push({x,y,z:q.z,a,rr,kind:q.kind});
+      }
+      proj.sort((a,b)=>a.z-b.z);
+
+      // limited network lines for "premium tech"
+      const net = proj.filter(p=>p.kind==='grid');
+      let lines=0;
+      for (let i=0;i<net.length && lines<200;i+=2){
+        const p=net[i], q=net[i+1];
+        if (!q) continue;
+        const dx=p.x-q.x, dy=p.y-q.y;
+        const d2=dx*dx+dy*dy;
+        if (d2 < 2400){
+          const alpha = 0.06*(0.35 + Math.max(0,p.a));
+          oc.strokeStyle = `rgba(125,211,252,${alpha})`;
+          oc.lineWidth = 1;
+          oc.beginPath(); oc.moveTo(p.x,p.y); oc.lineTo(q.x,q.y); oc.stroke();
+          lines++;
+        }
+      }
+
+      // dots
+      for (const p of proj){
+        const glowA = p.a * 0.32;
+        const coreA = (0.10 + p.a*0.85);
+        const front = (p.z > 0) ? '125,211,252' : '167,139,250';
+        const back  = (p.z > 0) ? '167,139,250' : '125,211,252';
+
+        oc.fillStyle = `rgba(${front},${glowA})`;
+        oc.beginPath(); oc.arc(p.x,p.y,p.rr*2.3,0,Math.PI*2); oc.fill();
+
+        oc.fillStyle = `rgba(${back},${coreA*0.75})`;
+        oc.beginPath(); oc.arc(p.x,p.y,p.rr,0,Math.PI*2); oc.fill();
+      }
+
+      // rim
+      oc.strokeStyle = 'rgba(170,195,255,0.10)';
+      oc.lineWidth=1;
+      oc.beginPath(); oc.arc(cx,cy,R*0.98,0,Math.PI*2); oc.stroke();
+
+      requestAnimationFrame(orbDraw);
+    }
+    requestAnimationFrame(orbDraw);
+
+    // Slow auto rotate when hovering (desktop)
+    orb.addEventListener('mouseenter', ()=>{ if (!prefersReduced) auto = 0.0020; });
+    orb.addEventListener('mouseleave', ()=>{ if (!prefersReduced) auto = 0.0032; });
+
+    /* ---------------- Magnetic hover for premium buttons ---------------- */
+    const magnets = document.querySelectorAll('.btn, nav a, nav button');
+    magnets.forEach(el=>{
+      el.addEventListener('mousemove', (e)=>{
+        const r = el.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - 0.5;
+        const y = (e.clientY - r.top) / r.height - 0.5;
+        el.style.transform = `translate(${x*6}px, ${y*6}px)`;
+      });
+      el.addEventListener('mouseleave', ()=>{ el.style.transform = 'translate(0px,0px)'; });
+    });
+  </script>
+</body>
+</html>
+```
