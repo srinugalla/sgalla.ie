@@ -6,17 +6,11 @@ html,
 body,
 #root {
   height: 100%;
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden; /* prevent horizontal swipe */
 }
 
 body {
   margin: 0;
   overflow: hidden;
-  overscroll-behavior-x: none;
-  touch-action: pan-y; /* allow vertical only */
-  -webkit-text-size-adjust: 100%;
 }
 
 * {
@@ -28,13 +22,13 @@ body {
   will-change: transform;
 }
 
-/* prevent iOS zoom + drag jitter */
+/* prevent iOS “double tap to zoom” jitter on globe drag */
 .globe-card,
 canvas {
   touch-action: none;
 }
 
-/* premium click animation */
+/* subtle premium click animation for all buttons/links */
 button,
 a {
   transition: transform 120ms ease, filter 120ms ease;
@@ -50,4 +44,93 @@ button:focus-visible,
 a:focus-visible {
   outline: none;
   filter: brightness(1.08);
+}
+
+/* --------------------- TRUE WRAP (slice bend) --------------------- */
+
+.globe-shell {
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.globe-bend {
+  transform-style: preserve-3d;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+/* vertical strips rotate in 3D => real wrap + bulge */
+.globe-slice {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+
+  width: 7%;
+  margin-left: -0.35%;
+
+  transform-style: preserve-3d;
+  transform-origin: center center;
+
+  transform:
+    translateZ(calc(var(--sliceZ, 0px) + var(--sliceBulge, 0px)))
+    rotateY(var(--sliceRot, 0deg));
+
+  filter: saturate(1.14) contrast(1.08);
+}
+
+/* stronger edge shading makes curvature obvious */
+.globe-bend::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      to right,
+      rgba(0,0,0, calc(0.10 + (var(--curveAbs, 0) * 0.28))),
+      rgba(0,0,0,0) 22%,
+      rgba(0,0,0,0) 78%,
+      rgba(0,0,0, calc(0.10 + (var(--curveAbs, 0) * 0.28)))
+    );
+  mix-blend-mode: multiply;
+  opacity: 0.92;
+}
+
+/* premium glass highlights */
+.globe-glass {
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: overlay;
+}
+
+/* dark theme: luminous */
+.globe-glass-dark {
+  background:
+    radial-gradient(140% 100% at 50% 10%, rgba(255,255,255, calc(0.24 + (var(--facing, 0.5) * 0.14))), rgba(0,0,0,0) 56%),
+    radial-gradient(120% 110% at 50% 55%, rgba(255,255,255,0.16), rgba(0,0,0,0) 58%),
+    radial-gradient(140% 120% at 50% 120%, rgba(0,0,0,0.46), rgba(0,0,0,0) 62%);
+  opacity: 0.96;
+}
+
+/* light theme: keep colour, avoid grayscale wash */
+.globe-glass-light {
+  background:
+    radial-gradient(140% 100% at 50% 10%, rgba(255,255,255,0.40), rgba(255,255,255,0) 56%),
+    radial-gradient(120% 110% at 50% 55%, rgba(0,0,0,0.08), rgba(0,0,0,0) 58%),
+    radial-gradient(140% 120% at 50% 120%, rgba(0,0,0,0.16), rgba(0,0,0,0) 62%);
+  opacity: 0.66;
+}
+
+/* content stays crisp */
+.globe-content {
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 640px) {
+  .globe-bend::after {
+    opacity: 1;
+  }
 }
