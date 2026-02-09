@@ -14,7 +14,7 @@
 [![Prometheus](https://img.shields.io/badge/Prometheus-Monitoring-E6522C?logo=prometheus&logoColor=white)](https://prometheus.io/)
 [![Grafana](https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana&logoColor=white)](https://grafana.com/)
 
-````md
+
 
 An **interactive DevOps portfolio** built around a **3D rotating globe**, showcasing experience, skills, education, and contact links — enhanced with **smooth animations**, **starfield + meteors**, and a **premium UI**.
 
@@ -22,17 +22,17 @@ An **interactive DevOps portfolio** built around a **3D rotating globe**, showca
 
 ## 🌐 Live Demo
 
-👉 **https://www.sgalla.ie**  
+ 👉  **https://www.sgalla.ie**
+ 
 (Deployed on Vercel)
 
 ---
-
 ## 🎥 Preview
 
 ![Portfolio Preview](public/preview.gif)
 
-> Screen recording of the interactive globe, card popups, browse view, and theme toggle.
 
+> Screen recording of the interactive globe, card popups, browse view, and theme toggle.
 ---
 
 ## ✨ Features
@@ -139,7 +139,7 @@ If you wish to reuse or adapt it, please credit:
 
 ## 📬 Contact
 
-- **Website:** https://sgalla.ie  
+- **Website:** https://www.sgalla.ie  
 - **LinkedIn:** https://www.linkedin.com/in/sgalla/
 - **GitHub:** https://github.com/srinugalla
 - **Email:** srinu.galla@gmail.com
