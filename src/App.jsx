@@ -121,7 +121,14 @@ function Starfield({ density = 700, theme = "dark" }) {
 
       const starRGB = theme === "light" ? "0,0,0" : "255,255,255";
 
-      const g = ctx.createRadialGradient(w * 0.5, h * 0.5, 60, w * 0.5, h * 0.5, Math.max(w, h) * 0.95);
+      const g = ctx.createRadialGradient(
+        w * 0.5,
+        h * 0.5,
+        60,
+        w * 0.5,
+        h * 0.5,
+        Math.max(w, h) * 0.95
+      );
       if (theme === "light") {
         g.addColorStop(0, "rgba(0,0,0,0.02)");
         g.addColorStop(1, "rgba(255,255,255,0)");
@@ -249,24 +256,43 @@ function Modal({ open, onClose, title, children, theme = "dark" }) {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div
+          className="fixed inset-0 z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <div className={cn("absolute inset-0 backdrop-blur", overlay)} onClick={onClose} />
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <motion.div
-              className={cn("w-[min(980px,92vw)] overflow-hidden rounded-3xl border shadow-[0_20px_90px_rgba(0,0,0,0.35)]", panel)}
+              className={cn(
+                "w-[min(980px,92vw)] overflow-hidden rounded-3xl border shadow-[0_20px_90px_rgba(0,0,0,0.35)]",
+                panel
+              )}
               initial={{ y: 18, scale: 0.98, opacity: 0 }}
               animate={{ y: 0, scale: 1, opacity: 1 }}
               exit={{ y: 12, scale: 0.99, opacity: 0 }}
               transition={{ type: "spring", stiffness: 220, damping: 26 }}
             >
               <div className={cn("flex items-center justify-between border-b px-5 py-4", headerBorder)}>
-                <div className={cn("text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>{title}</div>
-                <button onClick={onClose} className={cn("rounded-full border p-2 transition", closeBtn)} aria-label="Close">
+                <div className={cn("text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>
+                  {title}
+                </div>
+                <button
+                  onClick={onClose}
+                  className={cn("rounded-full border p-2 transition", closeBtn)}
+                  aria-label="Close"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className={cn("max-h-[78vh] overflow-y-auto p-5 text-sm leading-6", theme === "light" ? "text-black/80" : "text-white/75")}>
+              <div
+                className={cn(
+                  "max-h-[78vh] overflow-y-auto p-5 text-sm leading-6",
+                  theme === "light" ? "text-black/80" : "text-white/75"
+                )}
+              >
                 {children}
               </div>
             </motion.div>
@@ -285,31 +311,39 @@ function Globe({ items, onSelect, theme = "dark" }) {
 
   const rot = useRef({ x: -12, y: 18 });
   const vel = useRef({ x: 0.0, y: 0.085 });
-  const drag = useRef({ active: false, lx: 0, ly: 0 });
+  const drag = useRef({ active: false, lx: 0, ly: 0, pointerType: "mouse" });
   const lastInteract = useRef(0);
 
   const [R, setR] = useState(420);
   const [wrapSize, setWrapSize] = useState(960);
   const [cardScale, setCardScale] = useState(1);
 
-  // ✅ better mobile sizing: respect top header + bottom pill
+  // ✅ FIX #1: Mobile-fit sizing (strictly fits inside viewport)
+  // ✅ FIX #2: Prevent "side drift" by never exceeding available width
   useEffect(() => {
     const onResize = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
 
-      // safe padding for header+footer
-      const safeTop = w < 640 ? 124 : 92;
-      const safeBottom = 84;
+      const pad = w < 640 ? 14 : 24;          // side padding
+      const safeTop = w < 640 ? 160 : 102;    // header space
+      const safeBottom = w < 640 ? 104 : 96;  // bottom hint space
 
-      const usable = Math.max(520, Math.min(w, h - safeTop - safeBottom));
-      const ws = clamp(Math.floor(usable * 0.98), 340, 1120);
+      const maxByWidth = Math.max(300, w - pad * 2);
+      const maxByHeight = Math.max(300, h - safeTop - safeBottom);
+
+      // The globe wrapper should NEVER exceed either axis
+      const usable = clamp(Math.min(maxByWidth, maxByHeight), 300, 1100);
+
+      const ws = Math.floor(usable);
       setWrapSize(ws);
 
-      const r = clamp(Math.floor(ws * 0.47), 165, 520);
+      // Radius tuned so cards don't clip on mobile
+      const r = clamp(Math.floor(ws * (w < 640 ? 0.44 : 0.47)), 150, 520);
       setR(r);
 
-      setCardScale(clamp(usable / 1200, 0.78, 1.02));
+      // Slightly smaller on mobile
+      setCardScale(clamp(usable / 1200, w < 640 ? 0.72 : 0.78, 1.02));
     };
 
     onResize();
@@ -367,6 +401,7 @@ function Globe({ items, onSelect, theme = "dark" }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
+  // ✅ FIX #3: Better touch feel (mobile finger drag is more responsive)
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -374,6 +409,7 @@ function Globe({ items, onSelect, theme = "dark" }) {
     const onDown = (e) => {
       if (e.target?.closest?.("button[data-card]")) return;
       drag.current.active = true;
+      drag.current.pointerType = e.pointerType || "mouse";
       lastInteract.current = performance.now();
       drag.current.lx = e.clientX;
       drag.current.ly = e.clientY;
@@ -389,12 +425,18 @@ function Globe({ items, onSelect, theme = "dark" }) {
       drag.current.lx = e.clientX;
       drag.current.ly = e.clientY;
 
-      rot.current.y += dx * 0.14;
-      rot.current.x -= dy * 0.14;
+      // touch: stronger response, mouse: normal
+      const isTouch = drag.current.pointerType === "touch";
+      const k = isTouch ? 0.19 : 0.14;
+
+      rot.current.y += dx * k;
+      rot.current.x -= dy * k;
       rot.current.x = clamp(rot.current.x, -55, 55);
 
-      vel.current.y = dx * 0.055;
-      vel.current.x = -dy * 0.055;
+      // slightly more momentum for touch so it feels “grippy”
+      const mv = isTouch ? 0.075 : 0.055;
+      vel.current.y = dx * mv;
+      vel.current.x = -dy * mv;
     };
 
     const onUp = () => {
@@ -448,13 +490,24 @@ function Globe({ items, onSelect, theme = "dark" }) {
     <div className="relative z-10 flex h-[100svh] w-full items-center justify-center">
       <motion.div
         ref={wrapRef}
-        className="relative select-none"
-        style={{ width: wrapSize, height: wrapSize, perspective: "1200px" }}
+        className="relative select-none mx-auto"
+        // ✅ keep it centered & never exceed viewport width/height
+        style={{
+          width: wrapSize,
+          height: wrapSize,
+          maxWidth: "100%",
+          maxHeight: "100%",
+          perspective: "1200px",
+          touchAction: "none", // ✅ crucial for mobile finger drag stability
+        }}
         initial={{ opacity: 0, scale: 0.70, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 165, damping: 20 }}
       >
-        <div className="pointer-events-none absolute inset-0 rounded-full" style={{ background: specular, opacity: theme === "light" ? 0.18 : 0.22 }} />
+        <div
+          className="pointer-events-none absolute inset-0 rounded-full"
+          style={{ background: specular, opacity: theme === "light" ? 0.18 : 0.22 }}
+        />
 
         <div className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
           <div ref={innerRef} className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
@@ -494,10 +547,17 @@ function Globe({ items, onSelect, theme = "dark" }) {
                   }}
                 >
                   <div
-                    className={cn("relative h-full w-full overflow-hidden rounded-2xl border backdrop-blur-md transition", cardBorder, cardBg)}
+                    className={cn(
+                      "relative h-full w-full overflow-hidden rounded-2xl border backdrop-blur-md transition",
+                      cardBorder,
+                      cardBg
+                    )}
                     style={{
                       background: `radial-gradient(circle at 22% 18%, ${bgA}, rgba(255,255,255,0.08) 32%, rgba(0,0,0,0) 72%), linear-gradient(135deg, ${bgA}, ${bgB} 60%, rgba(0,0,0,0))`,
-                      boxShadow: theme === "light" ? "0 10px 22px rgba(0,0,0,0.06)" : "0 14px 40px rgba(0,0,0,0.42)",
+                      boxShadow:
+                        theme === "light"
+                          ? "0 10px 22px rgba(0,0,0,0.06)"
+                          : "0 14px 40px rgba(0,0,0,0.42)",
                     }}
                   >
                     <div className="flex items-start justify-between gap-2 p-3">
@@ -513,10 +573,16 @@ function Globe({ items, onSelect, theme = "dark" }) {
                         </div>
 
                         <div className="min-w-0 text-left">
-                          <div className={cn("line-clamp-2 font-semibold leading-[14px]", textMain)} style={{ fontSize: 11 }}>
+                          <div
+                            className={cn("line-clamp-2 font-semibold leading-[14px]", textMain)}
+                            style={{ fontSize: 11 }}
+                          >
                             {it.company || it.title}
                           </div>
-                          <div className={cn("mt-0.5 line-clamp-1 leading-[14px]", textSub)} style={{ fontSize: 10 }}>
+                          <div
+                            className={cn("mt-0.5 line-clamp-1 leading-[14px]", textSub)}
+                            style={{ fontSize: 10 }}
+                          >
                             {it.title}
                           </div>
                         </div>
@@ -550,7 +616,6 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, name
 
   return (
     <div className="fixed inset-x-0 top-0 z-30">
-      {/* ✅ mobile friendly header */}
       <div className="mx-auto max-w-6xl px-4 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -563,12 +628,15 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, name
               SG
             </div>
             <div className="min-w-0">
-              <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>{nameText}</div>
-              <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>DevOps Engineer • Dublin, Ireland</div>
+              <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>
+                {nameText}
+              </div>
+              <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>
+                DevOps Engineer • Dublin, Ireland
+              </div>
             </div>
           </div>
 
-          {/* ✅ buttons wrap instead of overlapping */}
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <button onClick={onAbout} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
               About
@@ -636,7 +704,9 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
                   onClick={() => onPick(c)}
                   className={cn(
                     "group relative overflow-hidden rounded-2xl border p-3 text-left transition",
-                    theme === "light" ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
+                    theme === "light"
+                      ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]"
+                      : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
                   )}
                   style={{
                     background: `radial-gradient(circle at 24% 20%, ${a}, rgba(255,255,255,0.08) 30%, rgba(0,0,0,0) 62%), linear-gradient(135deg, ${a}, ${b} 55%, rgba(0,0,0,0))`,
@@ -647,22 +717,40 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
                       <div
                         className={cn(
                           "grid h-9 w-9 place-items-center rounded-xl border text-xs font-extrabold",
-                          theme === "light" ? "border-black/10 bg-white/75 text-black/75" : "border-white/12 bg-black/30 text-white/85"
+                          theme === "light"
+                            ? "border-black/10 bg-white/75 text-black/75"
+                            : "border-white/12 bg-black/30 text-white/85"
                         )}
                       >
                         {c.logoText ? c.logoText : initials(c.company || c.title)}
                       </div>
                       <div className="min-w-0">
-                        <div className={cn("truncate text-xs font-semibold", theme === "light" ? "text-black/80" : "text-white/85")}>
+                        <div
+                          className={cn(
+                            "truncate text-xs font-semibold",
+                            theme === "light" ? "text-black/80" : "text-white/85"
+                          )}
+                        >
                           {c.company || c.title}
                         </div>
-                        <div className={cn("mt-0.5 line-clamp-1 text-[12px]", theme === "light" ? "text-black/55" : "text-white/60")}>{c.title}</div>
+                        <div className={cn("mt-0.5 line-clamp-1 text-[12px]", theme === "light" ? "text-black/55" : "text-white/60")}>
+                          {c.title}
+                        </div>
                       </div>
                     </div>
-                    <ArrowUpRight className={cn("h-4 w-4 shrink-0 transition", theme === "light" ? "text-black/50 group-hover:text-black/75" : "text-white/55 group-hover:text-white/80")} />
+                    <ArrowUpRight
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition",
+                        theme === "light" ? "text-black/50 group-hover:text-black/75" : "text-white/55 group-hover:text-white/80"
+                      )}
+                    />
                   </div>
 
-                  {c.meta && <div className={cn("mt-2 line-clamp-2 text-[12px] leading-4", theme === "light" ? "text-black/55" : "text-white/60")}>{c.meta}</div>}
+                  {c.meta && (
+                    <div className={cn("mt-2 line-clamp-2 text-[12px] leading-4", theme === "light" ? "text-black/55" : "text-white/60")}>
+                      {c.meta}
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -681,7 +769,9 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
                   onClick={() => onPick(c)}
                   className={cn(
                     "group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition",
-                    theme === "light" ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
+                    theme === "light"
+                      ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]"
+                      : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
                   )}
                   style={{
                     background: `radial-gradient(circle at 22% 20%, ${a}, rgba(255,255,255,0.06) 32%, rgba(0,0,0,0) 62%), linear-gradient(135deg, ${a}, ${b} 55%, rgba(0,0,0,0))`,
@@ -691,17 +781,28 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
                     <div
                       className={cn(
                         "grid h-10 w-10 place-items-center rounded-xl border text-xs font-extrabold",
-                        theme === "light" ? "border-black/10 bg-white/75 text-black/75" : "border-white/12 bg-black/30 text-white/85"
+                        theme === "light"
+                          ? "border-black/10 bg-white/75 text-black/75"
+                          : "border-white/12 bg-black/30 text-white/85"
                       )}
                     >
                       {c.logoText ? c.logoText : initials(c.company || c.title)}
                     </div>
                     <div className="min-w-0">
-                      <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black/85" : "text-white/90")}>{c.title}</div>
-                      <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>{c.company || c.meta || ""}</div>
+                      <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black/85" : "text-white/90")}>
+                        {c.title}
+                      </div>
+                      <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>
+                        {c.company || c.meta || ""}
+                      </div>
                     </div>
                   </div>
-                  <ArrowUpRight className={cn("h-4 w-4 transition", theme === "light" ? "text-black/50 group-hover:text-black/75" : "text-white/55 group-hover:text-white/80")} />
+                  <ArrowUpRight
+                    className={cn(
+                      "h-4 w-4 transition",
+                      theme === "light" ? "text-black/50 group-hover:text-black/75" : "text-white/55 group-hover:text-white/80"
+                    )}
+                  />
                 </button>
               );
             })}
@@ -746,7 +847,6 @@ function resolvePopupData(sel, data) {
 
 /* ----------------------------------- App ---------------------------------- */
 export default function App() {
-  // ✅ default dark
   const [theme, setTheme] = useState("dark");
 
   const [browseOpen, setBrowseOpen] = useState(false);
@@ -881,7 +981,12 @@ export default function App() {
       },
     ];
 
-    const principles = ["Automate the boring parts.", "Prefer repeatability over heroics.", "Observability is a feature.", "Small changes, shipped often."];
+    const principles = [
+      "Automate the boring parts.",
+      "Prefer repeatability over heroics.",
+      "Observability is a feature.",
+      "Small changes, shipped often.",
+    ];
 
     const baseCards = [
       ...experiences.map((e) => ({
@@ -931,9 +1036,39 @@ export default function App() {
     }
 
     const socials = [
-      { id: "social-linkedin", baseId: "social-linkedin", type: "link", title: "LinkedIn", company: "Connect", logoText: "in", meta: "Open my LinkedIn profile", palette: pickPalette("LinkedIn"), url: "https://www.linkedin.com/in/sgalla/" },
-      { id: "social-github", baseId: "social-github", type: "link", title: "GitHub", company: "Projects", logoText: "GH", meta: "Open my GitHub repositories", palette: pickPalette("GitHub"), url: "https://github.com/srinugalla/srinugalla" },
-      { id: "social-email", baseId: "social-email", type: "link", title: "Email", company: "srinu.galla@gmail.com", logoText: "@", meta: "Send me an email", palette: pickPalette("Email"), url: "mailto:srinu.galla@gmail.com" },
+      {
+        id: "social-linkedin",
+        baseId: "social-linkedin",
+        type: "link",
+        title: "LinkedIn",
+        company: "Connect",
+        logoText: "in",
+        meta: "Open my LinkedIn profile",
+        palette: pickPalette("LinkedIn"),
+        url: "https://www.linkedin.com/in/sgalla/",
+      },
+      {
+        id: "social-github",
+        baseId: "social-github",
+        type: "link",
+        title: "GitHub",
+        company: "Projects",
+        logoText: "GH",
+        meta: "Open my GitHub repositories",
+        palette: pickPalette("GitHub"),
+        url: "https://github.com/srinugalla/srinugalla",
+      },
+      {
+        id: "social-email",
+        baseId: "social-email",
+        type: "link",
+        title: "Email",
+        company: "srinu.galla@gmail.com",
+        logoText: "@",
+        meta: "Send me an email",
+        palette: pickPalette("Email"),
+        url: "mailto:srinu.galla@gmail.com",
+      },
     ];
 
     return { items: [...expanded.slice(0, 28), ...socials], experiences, education, skills, principles };
@@ -1159,9 +1294,7 @@ export default function App() {
         onAbout={() => setAboutOpen(true)}
         onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
         onBrowse={() => setBrowseOpen(true)}
-        onReset={() => {
-          reset();
-        }}
+        onReset={() => reset()}
         onContact={() => setContactOpen(true)}
       />
 
@@ -1184,31 +1317,18 @@ export default function App() {
         <div className="grid gap-4">
           <div className={cn("rounded-2xl border p-4", theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]")}>
             <div className={cn("text-xs font-semibold tracking-widest", theme === "light" ? "text-black/55" : "text-white/55")}>ABOUT ME</div>
-            <p className={cn("mt-3 text-sm leading-6", theme === "light" ? "text-black/70" : "text-white/75")}>
-                      <p>
-                        I’m a DevOps Engineer who turns complex systems into reliable, scalable,
-                      and easy-to-operate platforms.
-                      </p>
-
-                      <p>
-                        I specialize in building production-ready cloud infrastructure, CI/CD
-                      pipelines teams trust, and Kubernetes environments that scale without
-                      drama. My focus is always on repeatability, observability, and safe
-                      delivery — so teams can move fast without breaking things.
-                      </p>
-
-                      <p>
-                        I bring a rare blend of hands-on DevOps engineering and strong business
-                      understanding. Having worked across product, delivery, and operations,
-                      I don’t just automate systems — I design them around real business needs,
-                      timelines, and risk.
-                      </p>
-
-                      <p>  
-                        If you need predictable deployments, secure infrastructure, and a DevOps
-                      partner who owns outcomes end to end — I’d love to talk.
-                      </p>
-            </p>
+            <div className={cn("mt-3 space-y-3 text-sm leading-6", theme === "light" ? "text-black/70" : "text-white/75")}>
+              <p>I’m a DevOps Engineer who turns complex systems into reliable, scalable, and easy-to-operate platforms.</p>
+              <p>
+                I specialize in building production-ready cloud infrastructure, CI/CD pipelines teams trust, and Kubernetes environments that scale without drama.
+                My focus is always on repeatability, observability, and safe delivery — so teams can move fast without breaking things.
+              </p>
+              <p>
+                I bring a rare blend of hands-on DevOps engineering and strong business understanding. Having worked across product, delivery, and operations, I don’t just automate systems —
+                I design them around real business needs, timelines, and risk.
+              </p>
+              <p>If you need predictable deployments, secure infrastructure, and a DevOps partner who owns outcomes end to end — I’d love to talk.</p>
+            </div>
           </div>
 
           <div className={cn("rounded-2xl border p-4", theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]")}>
@@ -1310,12 +1430,10 @@ export default function App() {
         <DetailsModal />
       </Modal>
 
-      {/* ✅ Copyright stays visible and small on mobile */}
       <div className={cn("pointer-events-none fixed bottom-3 right-4 z-40 text-[11px]", theme === "light" ? "text-black/40" : "text-white/45")}>
         © {new Date().getFullYear()} Srinivasarao Galla
       </div>
 
-      {/* ✅ single helper pill */}
       <div className="fixed inset-x-0 bottom-6 z-30">
         <div className="mx-auto flex max-w-6xl items-center justify-center px-4">
           <div

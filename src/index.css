@@ -11,6 +11,8 @@ body,
 body {
   margin: 0;
   overflow: hidden;
+  overscroll-behavior: none; /* ✅ prevents iOS rubber-band scroll */
+  touch-action: none; /* ✅ makes globe drag smoother on mobile */
 }
 
 * {
@@ -26,4 +28,22 @@ body {
 .globe-card,
 canvas {
   touch-action: none;
+}
+
+/* subtle premium click animation for all buttons/links */
+button,
+a {
+  transition: transform 120ms ease, filter 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active,
+a:active {
+  transform: scale(0.98);
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: none;
+  filter: brightness(1.08);
 }
