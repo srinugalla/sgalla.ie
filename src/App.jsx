@@ -48,8 +48,9 @@ function initials(name = "") {
 }
 
 /* ----------------------------- Binary reveal name ----------------------------- */
-function useBinaryReveal(finalText, { durationMs = 1200, settleMs = 200 } = {}) {
+function useBinaryReveal(finalText, key, { durationMs = 1200, settleMs = 200 } = {}) {
   const [text, setText] = useState(finalText);
+
   useEffect(() => {
     let raf = 0;
     const start = performance.now();
@@ -75,7 +76,7 @@ function useBinaryReveal(finalText, { durationMs = 1200, settleMs = 200 } = {}) 
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [finalText, durationMs, settleMs]);
+  }, [finalText, key, durationMs, settleMs]);
 
   return text;
 }
@@ -103,7 +104,7 @@ function Starfield({ density = 700, theme = "dark" }) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const N = Math.floor((w * h) / 1800);
-      const target = Math.min(density, Math.max(260, N));
+      const target = Math.min(density, Math.max(160, N));
       stars.current = new Array(target).fill(0).map(() => ({
         x: Math.random() * w,
         y: Math.random() * h,
@@ -140,13 +141,14 @@ function Starfield({ density = 700, theme = "dark" }) {
         ctx.fill();
       }
 
+      // Meteors
       const now = t;
       const since = now - lastMeteorAt.current;
-      const minGap = theme === "light" ? 5200 : 3300;
-      const maxGap = theme === "light" ? 10000 : 7600;
+      const minGap = theme === "light" ? 6200 : 3600;
+      const maxGap = theme === "light" ? 12000 : 8600;
       const gap = minGap + Math.random() * (maxGap - minGap);
 
-      if (since > gap && meteors.current.length < 3) {
+      if (since > gap && meteors.current.length < 2) {
         lastMeteorAt.current = now;
 
         const startEdge = Math.random() < 0.5 ? "top" : "left";
@@ -206,10 +208,7 @@ function Starfield({ density = 700, theme = "dark" }) {
             ctx.fill();
           }
 
-          ctx.fillStyle =
-            theme === "light"
-              ? `rgba(0,0,0,${0.16 * alpha})`
-              : `rgba(255,255,255,${0.22 * alpha})`;
+          ctx.fillStyle = theme === "light" ? `rgba(0,0,0,${0.16 * alpha})` : `rgba(255,255,255,${0.22 * alpha})`;
           ctx.beginPath();
           ctx.arc(nx, ny, theme === "light" ? 1.2 : 1.7, 0, Math.PI * 2);
           ctx.fill();
@@ -235,10 +234,7 @@ function Starfield({ density = 700, theme = "dark" }) {
 
 /* --------------------------------- Modal --------------------------------- */
 function Modal({ open, onClose, title, children, theme = "dark" }) {
-  const panel =
-    theme === "light"
-      ? "bg-white text-black border-black/10"
-      : "bg-[#0a0a0c] text-white border-white/15";
+  const panel = theme === "light" ? "bg-white text-black border-black/10" : "bg-[#0a0a0c] text-white border-white/15";
   const headerBorder = theme === "light" ? "border-black/10" : "border-white/10";
   const closeBtn =
     theme === "light"
@@ -278,13 +274,14 @@ function Modal({ open, onClose, title, children, theme = "dark" }) {
 }
 
 /* --------------------------------- Globe --------------------------------- */
-function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
+function Globe({ items, onSelect, theme = "dark", isMobile, isLandscape }) {
   const wrapRef = useRef(null);
   const innerRef = useRef(null);
   const rafRef = useRef(0);
 
-  const rot = useRef({ x: -12, y: 18 });
+  const rot = useRef({ x: -10, y: 18 });
   const vel = useRef({ x: 0.0, y: 0.085 });
+
   const drag = useRef({ active: false, lx: 0, ly: 0, pointerType: "mouse" });
   const lastInteract = useRef(0);
 
@@ -292,44 +289,49 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
   const [wrapSize, setWrapSize] = useState(960);
   const [cardScale, setCardScale] = useState(1);
 
-  // ✅ Mobile-fit sizing + bigger radius to reduce overlap
+  // ✅ strict center + safe sizing (no “min 520” that breaks landscape)
   useEffect(() => {
     const onResize = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
 
-      const mobile = w < 640;
-      const pad = mobile ? 14 : 24;
-      const safeTop = mobile ? 170 : 102;
-      const safeBottom = mobile ? 116 : 96;
+      const safeTop = w < 640 ? 132 : 96;
+      const safeBottom = w < 640 ? 86 : 90;
 
-      const maxByWidth = Math.max(300, w - pad * 2);
-      const maxByHeight = Math.max(300, h - safeTop - safeBottom);
+      const usableH = Math.max(220, h - safeTop - safeBottom);
+      const usable = Math.max(220, Math.min(w, usableH));
 
-      const usable = clamp(Math.min(maxByWidth, maxByHeight), 300, 1100);
+      const maxSize = isMobile ? 740 : 1120;
+      const minSize = isMobile ? 300 : 380;
 
-      const ws = Math.floor(usable);
+      const ws = clamp(Math.floor(usable * (isMobile ? 0.94 : 0.98)), minSize, maxSize);
       setWrapSize(ws);
 
-      // bigger radius on mobile (pushes cards apart visually)
-      const r = clamp(Math.floor(ws * (mobile ? 0.52 : 0.47)), 150, 520);
+      // 🔥 mobile mode: slightly smaller globe radius (brings cards closer, less “far away”)
+      const radiusFactor = isMobile ? 0.40 : 0.47; // was 0.47
+      const r = clamp(Math.floor(ws * radiusFactor), isMobile ? 140 : 165, isMobile ? 360 : 520);
       setR(r);
 
-      // smaller cards on mobile
-      setCardScale(clamp(usable / 1200, mobile ? 0.60 : 0.78, 1.02));
+      // 🔥 mobile cards slightly bigger so globe doesn't feel empty
+      const cs = isMobile ? clamp(usable / 980, 0.92, 1.02) : clamp(usable / 1200, 0.78, 1.02);
+      setCardScale(cs);
     };
 
     onResize();
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, [isMobile]);
 
-  // ✅ Spread cards more on mobile (reduce pole crowding)
   const points = useMemo(() => {
     const n = items.length;
     const pts = [];
     const phi = Math.PI * (3 - Math.sqrt(5));
-    const poleClamp = isMobile ? 0.90 : 0.975; // smaller = less pole packing
+    // On mobile/landscape, reduce poleClamp slightly to avoid crowding at poles.
+    const poleClamp = isMobile ? 0.955 : 0.975;
 
     for (let i = 0; i < n; i++) {
       const y = lerp(poleClamp, -poleClamp, i / (n - 1));
@@ -342,8 +344,10 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
     return pts;
   }, [items.length, isMobile]);
 
+  // ✅ smoother, less “sluggish” on touch: slightly higher damping + better input scaling
   useEffect(() => {
     let last = performance.now();
+
     const tick = (now) => {
       const dt = Math.min(34, now - last);
       last = now;
@@ -352,16 +356,18 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
       rot.current.x += vel.current.x * (dt / 16);
       rot.current.x = clamp(rot.current.x, -46, 46);
 
-      vel.current.y *= 0.992;
-      vel.current.x *= 0.992;
+      // stronger damping on mobile so it doesn’t feel floaty / sluggish
+      const damp = isMobile ? 0.988 : 0.992;
+      vel.current.y *= damp;
+      vel.current.x *= damp;
 
-      const idle = !drag.current.active && now - lastInteract.current > 900;
+      const idle = !drag.current.active && now - lastInteract.current > 850;
 
       if (idle) {
-        vel.current.y = lerp(vel.current.y, 0.085, 0.012);
+        vel.current.y = lerp(vel.current.y, 0.082, isMobile ? 0.014 : 0.012);
         vel.current.x = lerp(vel.current.x, 0.0, 0.030);
       } else {
-        vel.current.y = lerp(vel.current.y, 0.0, 0.022);
+        vel.current.y = lerp(vel.current.y, 0.0, isMobile ? 0.028 : 0.022);
         vel.current.x = lerp(vel.current.x, 0.0, 0.030);
       }
 
@@ -374,9 +380,9 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
 
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, []);
+  }, [isMobile]);
 
-  // ✅ Better finger feel on mobile
+  // drag
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -400,16 +406,17 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
       drag.current.lx = e.clientX;
       drag.current.ly = e.clientY;
 
+      // touch should feel “snappy” not heavy
       const isTouch = drag.current.pointerType === "touch";
-      const k = isTouch ? 0.22 : 0.14;
+      const rotMul = isTouch ? 0.18 : 0.14;
+      const velMul = isTouch ? 0.072 : 0.055;
 
-      rot.current.y += dx * k;
-      rot.current.x -= dy * k;
+      rot.current.y += dx * rotMul;
+      rot.current.x -= dy * rotMul;
       rot.current.x = clamp(rot.current.x, -55, 55);
 
-      const mv = isTouch ? 0.08 : 0.055;
-      vel.current.y = dx * mv;
-      vel.current.x = -dy * mv;
+      vel.current.y = dx * velMul;
+      vel.current.x = -dy * velMul;
     };
 
     const onUp = () => {
@@ -430,6 +437,7 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
     };
   }, []);
 
+  // wheel / trackpad
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -463,14 +471,13 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
     <div className="relative z-10 flex h-[100svh] w-full items-center justify-center">
       <motion.div
         ref={wrapRef}
-        className="relative select-none mx-auto"
+        className="relative select-none"
         style={{
           width: wrapSize,
           height: wrapSize,
-          maxWidth: "100%",
-          maxHeight: "100%",
           perspective: "1200px",
-          touchAction: "none",
+          // ✅ keeps center-of-gravity truly centered (no drift)
+          transform: "translateZ(0)",
         }}
         initial={{ opacity: 0, scale: 0.70, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -484,8 +491,12 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
               const p = points[i];
               const place = `rotateY(${(p.lon * 180) / Math.PI}deg) rotateX(${(-p.lat * 180) / Math.PI}deg) translateZ(${R}px)`;
 
-              const w = (it.w ?? 142) * cardScale;
-              const h = (it.h ?? 96) * cardScale;
+              // ✅ mobile cards a touch larger + consistent
+              const baseW = isMobile ? 148 : 140;
+              const baseH = isMobile ? 98 : 96;
+
+              const w = (it.w ?? baseW) * cardScale;
+              const h = (it.h ?? baseH) * cardScale;
 
               const cardBorder = theme === "light" ? "border-black/15" : "border-white/12";
               const cardBg = theme === "light" ? "bg-white/92" : "bg-white/[0.06]";
@@ -495,17 +506,6 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
               const pal = it.palette ?? pickPalette(it.company || it.title || it.id);
               const bgA = theme === "light" ? `${pal.a}18` : `${pal.a}22`;
               const bgB = theme === "light" ? `${pal.b}12` : `${pal.b}16`;
-
-              // ✅ Mobile performance: NO blur + lighter shadow
-              const perfClasses = isMobile ? "backdrop-blur-0" : "backdrop-blur-md";
-              const perfShadow =
-                theme === "light"
-                  ? isMobile
-                    ? "0 6px 14px rgba(0,0,0,0.05)"
-                    : "0 10px 22px rgba(0,0,0,0.06)"
-                  : isMobile
-                    ? "0 10px 26px rgba(0,0,0,0.35)"
-                    : "0 14px 40px rgba(0,0,0,0.42)";
 
               return (
                 <button
@@ -527,29 +527,29 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
                   }}
                 >
                   <div
-                    className={cn("relative h-full w-full overflow-hidden rounded-2xl border transition", cardBorder, cardBg, perfClasses)}
+                    className={cn("relative h-full w-full overflow-hidden rounded-2xl border backdrop-blur-md transition", cardBorder, cardBg)}
                     style={{
                       background: `radial-gradient(circle at 22% 18%, ${bgA}, rgba(255,255,255,0.08) 32%, rgba(0,0,0,0) 72%), linear-gradient(135deg, ${bgA}, ${bgB} 60%, rgba(0,0,0,0))`,
-                      boxShadow: perfShadow,
+                      boxShadow: theme === "light" ? "0 10px 22px rgba(0,0,0,0.06)" : "0 14px 40px rgba(0,0,0,0.42)",
                     }}
                   >
                     <div className="flex items-start justify-between gap-2 p-3">
                       <div className="flex items-center gap-2 min-w-0">
                         <div
                           className={cn(
-                            "grid place-items-center rounded-xl border border-white/10 font-extrabold",
+                            "grid h-9 w-9 place-items-center rounded-xl border border-white/10 font-extrabold",
                             theme === "light" ? "bg-black/[0.04] text-black/75" : "bg-black/40 text-white/85"
                           )}
-                          style={{ width: isMobile ? 32 : 36, height: isMobile ? 32 : 36, fontSize: 10 }}
+                          style={{ fontSize: 10 }}
                         >
                           {it.logoText ? it.logoText : initials(it.company || it.title)}
                         </div>
 
                         <div className="min-w-0 text-left">
-                          <div className={cn("line-clamp-2 font-semibold leading-[14px]", textMain)} style={{ fontSize: isMobile ? 10 : 11 }}>
+                          <div className={cn("line-clamp-2 font-semibold leading-[14px]", textMain)} style={{ fontSize: isMobile ? 10.5 : 11 }}>
                             {it.company || it.title}
                           </div>
-                          <div className={cn("mt-0.5 line-clamp-1 leading-[14px]", textSub)} style={{ fontSize: isMobile ? 9 : 10 }}>
+                          <div className={cn("mt-0.5 line-clamp-1 leading-[14px]", textSub)} style={{ fontSize: isMobile ? 9.5 : 10 }}>
                             {it.title}
                           </div>
                         </div>
@@ -560,7 +560,7 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
                       </div>
                     </div>
 
-                    <div className={cn("px-3 pb-3 text-left leading-[14px]", textSub)} style={{ fontSize: isMobile ? 9 : 10 }}>
+                    <div className={cn("px-3 pb-3 text-left leading-[14px]", textSub)} style={{ fontSize: isMobile ? 9.5 : 10 }}>
                       <span className="line-clamp-2">{it.meta || ""}</span>
                     </div>
                   </div>
@@ -575,7 +575,7 @@ function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
 }
 
 /* ---------------------------------- HUD ---------------------------------- */
-function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, nameText }) {
+function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, onHome, nameText }) {
   const btnBase = "rounded-full border transition";
   const btnDark = "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]";
   const btnLight = "border-black/10 bg-black/[0.03] text-black/75 hover:bg-black/[0.06]";
@@ -585,7 +585,12 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, name
     <div className="fixed inset-x-0 top-0 z-30">
       <div className="mx-auto max-w-6xl px-4 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+          <button
+            onClick={onHome}
+            className="flex items-center gap-3 text-left"
+            title="Home"
+            style={{ WebkitTapHighlightColor: "transparent" }}
+          >
             <div
               className={cn(
                 "flex h-10 w-10 items-center justify-center rounded-2xl border text-xs font-extrabold tracking-wide shrink-0",
@@ -598,10 +603,12 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, name
               <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>{nameText}</div>
               <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>DevOps Engineer • Dublin, Ireland</div>
             </div>
-          </div>
+          </button>
 
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <button onClick={onAbout} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>About</button>
+            <button onClick={onAbout} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
+              About
+            </button>
 
             <button onClick={onToggleTheme} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
               <span className="inline-flex items-center gap-2">
@@ -620,7 +627,9 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, name
               <RotateCcw className="h-4 w-4" />
             </button>
 
-            <button onClick={onContact} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>Contact</button>
+            <button onClick={onContact} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
+              Contact
+            </button>
           </div>
         </div>
       </div>
@@ -775,21 +784,37 @@ function resolvePopupData(sel, data) {
 export default function App() {
   const [theme, setTheme] = useState("dark");
 
+  // ✅ mobile mode detection (includes landscape constraints)
+  const [isMobile, setIsMobile] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
+
+  useEffect(() => {
+    const compute = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+      const small = w < 680 || h < 520;
+      setIsMobile(Boolean(coarse || small));
+      setIsLandscape(w > h);
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    window.addEventListener("orientationchange", compute);
+    return () => {
+      window.removeEventListener("resize", compute);
+      window.removeEventListener("orientationchange", compute);
+    };
+  }, []);
+
   const [browseOpen, setBrowseOpen] = useState(false);
   const [browseMode, setBrowseMode] = useState("grid");
   const [contactOpen, setContactOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [selected, setSelected] = useState(null);
 
-  // ✅ detect mobile for globe optimization
-  const [isMobile, setIsMobile] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 640 : false));
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 640);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const nameText = useBinaryReveal("Srinivasarao Galla", { durationMs: 1250, settleMs: 160 });
+  // ✅ replay reveal on “home”
+  const [nameAnimKey, setNameAnimKey] = useState(1);
+  const nameText = useBinaryReveal("Srinivasarao Galla", nameAnimKey, { durationMs: 1250, settleMs: 160 });
 
   const data = useMemo(() => {
     const skills = {
@@ -883,21 +908,79 @@ export default function App() {
     ];
 
     const education = [
-      { id: "edu-mba", type: "education", title: "MBA in Marketing", school: "University of Wales Trinity Saint David", location: "London, UK", period: "2010 – 2011", details: "Master of Business Administration in Marketing.", relatedSkillIds: ["collaboration", "pm"] },
-      { id: "edu-bsc", type: "education", title: "B.Sc (Maths, Physics, Chemistry)", school: "Gowtham Degree College (A.N. University)", location: "Vijayawada, India", period: "2004–2005, 2007–2009", details: "Strong analytical and problem-solving foundation.", relatedSkillIds: ["tooling"] },
-      { id: "edu-ded", type: "education", title: "Diploma in Education (D.Ed)", school: "D.I.E.T, Krishna District", location: "India", period: "2005 – 2007", details: "Communication and structured learning approaches.", relatedSkillIds: ["collaboration"] },
+      {
+        id: "edu-mba",
+        type: "education",
+        title: "MBA in Marketing",
+        school: "University of Wales Trinity Saint David",
+        location: "London, UK",
+        period: "2010 – 2011",
+        details: "Master of Business Administration in Marketing.",
+        relatedSkillIds: ["collaboration", "pm"],
+      },
+      {
+        id: "edu-bsc",
+        type: "education",
+        title: "B.Sc (Maths, Physics, Chemistry)",
+        school: "Gowtham Degree College (A.N. University)",
+        location: "Vijayawada, India",
+        period: "2004–2005, 2007–2009",
+        details: "Strong analytical and problem-solving foundation.",
+        relatedSkillIds: ["tooling"],
+      },
+      {
+        id: "edu-ded",
+        type: "education",
+        title: "Diploma in Education (D.Ed)",
+        school: "D.I.E.T, Krishna District",
+        location: "India",
+        period: "2005 – 2007",
+        details: "Communication and structured learning approaches.",
+        relatedSkillIds: ["collaboration"],
+      },
     ];
 
     const principles = ["Automate the boring parts.", "Prefer repeatability over heroics.", "Observability is a feature.", "Small changes, shipped often."];
 
     const baseCards = [
-      ...experiences.map((e) => ({ id: e.id, baseId: e.id, type: "experience", title: e.title, company: e.company, logoText: initials(e.company), meta: e.meta, palette: pickPalette(e.company) })),
-      ...Object.values(skills).map((s) => ({ id: `skill-${s.id}`, baseId: `skill-${s.id}`, type: "skill", title: s.title, company: s.subtitle, logoText: initials(s.title), meta: s.desc, palette: pickPalette(s.title), skillId: s.id })),
-      ...education.map((e) => ({ id: e.id, baseId: e.id, type: "education", title: e.title, company: e.school, logoText: initials(e.school), meta: e.period, palette: pickPalette(e.school) })),
+      ...experiences.map((e) => ({
+        id: e.id,
+        baseId: e.id,
+        type: "experience",
+        title: e.title,
+        company: e.company,
+        logoText: initials(e.company),
+        meta: e.meta,
+        palette: pickPalette(e.company),
+      })),
+      ...Object.values(skills).map((s) => ({
+        id: `skill-${s.id}`,
+        baseId: `skill-${s.id}`,
+        type: "skill",
+        title: s.title,
+        company: s.subtitle,
+        logoText: initials(s.title),
+        meta: s.desc,
+        palette: pickPalette(s.title),
+        skillId: s.id,
+      })),
+      ...education.map((e) => ({
+        id: e.id,
+        baseId: e.id,
+        type: "education",
+        title: e.title,
+        company: e.school,
+        logoText: initials(e.school),
+        meta: e.period,
+        palette: pickPalette(e.school),
+      })),
     ];
 
+    // ✅ mobile mode: fewer duplicates + fewer total items = less overlap + smoother
+    const loops = isMobile ? 1 : 2;
+
     const expanded = [];
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < loops; i++) {
       for (let j = 0; j < baseCards.length; j++) {
         const b = baseCards[j];
         expanded.push({
@@ -915,15 +998,9 @@ export default function App() {
       { id: "social-email", baseId: "social-email", type: "link", title: "Email", company: "srinu.galla@gmail.com", logoText: "@", meta: "Send me an email", palette: pickPalette("Email"), url: "mailto:srinu.galla@gmail.com" },
     ];
 
-    return { items: [...expanded.slice(0, 28), ...socials], experiences, education, skills, principles };
-  }, []);
-
-  // ✅ Mobile perf: fewer globe items (BIGGEST improvement)
-  const globeItems = useMemo(() => {
-    if (!isMobile) return data.items;
-    // keep variety but cut count heavily
-    return data.items.slice(0, 16);
-  }, [data.items, isMobile]);
+    const maxGlobeItems = isMobile ? 22 : 28;
+    return { items: [...expanded.slice(0, maxGlobeItems), ...socials], experiences, education, skills, principles };
+  }, [isMobile]);
 
   const browseCards = useMemo(() => {
     const seen = new Set();
@@ -1137,11 +1214,16 @@ export default function App() {
 
   return (
     <div className={cn("min-h-[100svh]", rootBg)}>
-      <Starfield theme={theme} />
+      {/* ✅ mobile mode: less density = smoother */}
+      <Starfield theme={theme} density={isMobile ? 360 : 700} />
 
       <Hud
         theme={theme}
         nameText={nameText}
+        onHome={() => {
+          reset();
+          setNameAnimKey((k) => k + 1);
+        }}
         onAbout={() => setAboutOpen(true)}
         onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
         onBrowse={() => setBrowseOpen(true)}
@@ -1149,7 +1231,15 @@ export default function App() {
         onContact={() => setContactOpen(true)}
       />
 
-      {!browseOpen && <Globe items={globeItems} isMobile={isMobile} theme={theme} onSelect={(it) => setSelected(it)} />}
+      {!browseOpen && (
+        <Globe
+          items={data.items}
+          theme={theme}
+          isMobile={isMobile}
+          isLandscape={isLandscape}
+          onSelect={(it) => setSelected(it)}
+        />
+      )}
 
       <BrowseView
         open={browseOpen}
@@ -1168,16 +1258,21 @@ export default function App() {
         <div className="grid gap-4">
           <div className={cn("rounded-2xl border p-4", theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]")}>
             <div className={cn("text-xs font-semibold tracking-widest", theme === "light" ? "text-black/55" : "text-white/55")}>ABOUT ME</div>
+
+            {/* ✅ fixed paragraph layout (no nested <p>) */}
             <div className={cn("mt-3 space-y-3 text-sm leading-6", theme === "light" ? "text-black/70" : "text-white/75")}>
               <p>I’m a DevOps Engineer who turns complex systems into reliable, scalable, and easy-to-operate platforms.</p>
+
               <p>
                 I specialize in building production-ready cloud infrastructure, CI/CD pipelines teams trust, and Kubernetes environments that scale without drama.
                 My focus is always on repeatability, observability, and safe delivery — so teams can move fast without breaking things.
               </p>
+
               <p>
-                I bring a rare blend of hands-on DevOps engineering and strong business understanding. Having worked across product, delivery, and operations, I don’t just automate systems —
-                I design them around real business needs, timelines, and risk.
+                I bring a rare blend of hands-on DevOps engineering and strong business understanding. Having worked across product, delivery, and operations,
+                I don’t just automate systems — I design them around real business needs, timelines, and risk.
               </p>
+
               <p>If you need predictable deployments, secure infrastructure, and a DevOps partner who owns outcomes end to end — I’d love to talk.</p>
             </div>
           </div>
@@ -1285,10 +1380,17 @@ export default function App() {
         © {new Date().getFullYear()} Srinivasarao Galla
       </div>
 
+      {/* ✅ helper pill responsive + smaller on mobile */}
       <div className="fixed inset-x-0 bottom-6 z-30">
         <div className="mx-auto flex max-w-6xl items-center justify-center px-4">
-          <div className={cn("rounded-full border px-4 py-2 text-[11px] font-semibold tracking-widest backdrop-blur", theme === "light" ? "border-black/10 bg-white/70 text-black/60" : "border-white/12 bg-black/35 text-white/70")}>
-            DRAG / TRACKPAD SWIPE • CLICK CARD • BROWSE GRID/LIST
+          <div
+            className={cn(
+              "rounded-full border backdrop-blur",
+              theme === "light" ? "border-black/10 bg-white/70 text-black/60" : "border-white/12 bg-black/35 text-white/70",
+              isMobile ? "px-3 py-1.5 text-[10px] font-semibold tracking-wide" : "px-4 py-2 text-[11px] font-semibold tracking-widest"
+            )}
+          >
+            {isMobile ? "DRAG • TAP CARD • BROWSE" : "DRAG / TRACKPAD SWIPE • CLICK CARD • BROWSE GRID/LIST"}
           </div>
         </div>
       </div>
