@@ -8,16 +8,15 @@ body,
   height: 100%;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: hidden;          /* ✅ no horizontal swipe */
 }
 
 body {
   margin: 0;
-  overflow: hidden;
-  position: fixed;
-  inset: 0;
-  overscroll-behavior: none;
-  touch-action: none;
+  overflow: hidden;            /* ✅ lock scrolling */
+  overscroll-behavior-x: none; /* ✅ prevent sideways rubber-band */
+  touch-action: pan-y;         /* ✅ allow vertical only, block horizontal pan */
+  -webkit-text-size-adjust: 100%;
 }
 
 * {
@@ -29,13 +28,13 @@ body {
   will-change: transform;
 }
 
-/* prevent iOS zoom + drag jitter */
+/* ✅ keep globe drag smooth + prevent iOS double-tap zoom jitter */
 .globe-card,
 canvas {
   touch-action: none;
 }
 
-/* premium click animation */
+/* subtle premium click animation for all buttons/links */
 button,
 a {
   transition: transform 120ms ease, filter 120ms ease;
@@ -44,7 +43,7 @@ a {
 
 button:active,
 a:active {
-  transform: scale(0.98);
+ desenvolvido transform: scale(0.98);
 }
 
 button:focus-visible,
