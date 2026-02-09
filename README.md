@@ -29,9 +29,7 @@ An **interactive DevOps portfolio** built around a **3D rotating globe**, showca
 
 ## 🎥 Preview
 
-
 ![Portfolio Preview](public/preview.gif)
-
 
 > Screen recording of the interactive globe, card popups, browse view, and theme toggle.
 
