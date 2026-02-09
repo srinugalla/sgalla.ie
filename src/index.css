@@ -6,11 +6,18 @@ html,
 body,
 #root {
   height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   overflow: hidden;
+  position: fixed;
+  inset: 0;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 * {
@@ -22,18 +29,13 @@ body {
   will-change: transform;
 }
 
-/* ✅ prevent iOS “double tap to zoom” jitter on globe drag */
+/* prevent iOS zoom + drag jitter */
 .globe-card,
 canvas {
   touch-action: none;
 }
 
-/* ✅ fix mobile drift + GPU compositing */
-#root {
-  transform: translateZ(0);
-}
-
-/* subtle premium click animation for all buttons/links */
+/* premium click animation */
 button,
 a {
   transition: transform 120ms ease, filter 120ms ease;
