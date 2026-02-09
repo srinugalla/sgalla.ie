@@ -1,103 +1,67 @@
-# 🌍 Srinivasarao Galla Portfolio - sgalla.ie
+# Srinivasarao Galla Portfolio — www.sgalla.ie 🌍✨
 
-<p align="center">
-  <img src="https://img.shields.io/badge/AWS-Cloud-orange?style=for-the-badge&logo=amazonaws&logoColor=white" />
-  <img src="https://img.shields.io/badge/Kubernetes-Orchestration-326ce5?style=for-the-badge&logo=kubernetes&logoColor=white" />
-  <img src="https://img.shields.io/badge/Docker-Containers-2496ed?style=for-the-badge&logo=docker&logoColor=white" />
-  <img src="https://img.shields.io/badge/Terraform-Infrastructure%20as%20Code-844fba?style=for-the-badge&logo=terraform&logoColor=white" />
-  <img src="https://img.shields.io/badge/Jenkins-CI%2FCD-d24939?style=for-the-badge&logo=jenkins&logoColor=white" />
-</p>
+[![Vite](https://img.shields.io/badge/Vite-5.x-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![React](https://img.shields.io/badge/React-18.x-61DAFB?logo=react&logoColor=111)](https://react.dev/)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.x-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Framer Motion](https://img.shields.io/badge/Framer%20Motion-Animations-ff4d8d)](https://www.framer.com/motion/)
+[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel&logoColor=white)](https://vercel.com/)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Prometheus-Monitoring-e6522c?style=flat-square&logo=prometheus&logoColor=white" />
-  <img src="https://img.shields.io/badge/Grafana-Observability-f46800?style=flat-square&logo=grafana&logoColor=white" />
-  <img src="https://img.shields.io/badge/Git-GitHub-black?style=flat-square&logo=github&logoColor=white" />
-  <img src="https://img.shields.io/badge/Linux-Bash-333?style=flat-square&logo=linux&logoColor=white" />
-</p>
-
-<p align="center">
-  <strong>DevOps Engineer • Cloud Infrastructure • CI/CD • Kubernetes</strong><br/>
-  Dublin, Ireland
-</p>
-
+[![AWS](https://img.shields.io/badge/AWS-Cloud-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-Orchestration-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Docker](https://img.shields.io/badge/Docker-Containers-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?logo=terraform&logoColor=white)](https://www.terraform.io/)
+[![Jenkins](https://img.shields.io/badge/Jenkins-CI%2FCD-D24939?logo=jenkins&logoColor=white)](https://www.jenkins.io/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-Monitoring-E6522C?logo=prometheus&logoColor=white)](https://prometheus.io/)
+[![Grafana](https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana&logoColor=white)](https://grafana.com/)
 
 ````md
-# 🌍 Interactive Globe Portfolio
 
-A **premium, interactive personal portfolio** built with modern web technologies.  
-This project presents my **experience, skills, and background** as cards embedded on a **rotating 3D globe**, with smooth interactions, rich popups, and a clean, professional aesthetic.
+An **interactive DevOps portfolio** built around a **3D rotating globe**, showcasing experience, skills, education, and contact links — enhanced with **smooth animations**, **starfield + meteors**, and a **premium UI**.
 
-Designed to feel **explorable, calm, and intentional** — inspired by spatial interfaces and modern product sites.
+---
+
+## 🌐 Live Demo
+
+👉 **https://www.sgalla.ie**  
+(Deployed on Vercel)
+
+---
+
+## 🎥 Preview
+
+![Portfolio Preview](./public/preview.gif)
+
+> Screen recording of the interactive globe, card popups, browse view, and theme toggle.
 
 ---
 
 ## ✨ Features
 
-- 🌐 **Interactive 3D Globe**
-  - Cards curve with the globe surface
-  - Smooth inertia-based rotation
-  - Trackpad swipe & drag support
-  - Transparent “glass” globe to reveal cards in full 360°
-
-- 🧲 **Smart Card System**
-  - Experience, skills, education, and social links
-  - Color-coded professional palette
-  - Depth-based scaling and opacity
-  - No overlap at globe poles
-
-- 🪟 **Rich Detail Popups**
-  - Click any card to view full context
-  - Experience → responsibilities, tools, skills used
-  - Skills → description + where they were applied
-  - Education → background and related skills
-  - Social cards → GitHub, LinkedIn, Email
-
-- 🌓 **Dark / Light Mode**
-  - Fully themed UI
-  - Smooth visual transitions
-  - Optimized readability in both modes
-
-- ✨ **Atmospheric Background**
-  - Subtle animated starfield
-  - Occasional meteors (“dying stars”)
-  - Depth-enhancing fog and vignette
-
-- 🧭 **Browse Mode**
-  - Toggle between Globe / Grid / List views
-  - Scrollable, responsive layouts
-  - Consistent popups across all modes
-
-- 📱 **Responsive & Adaptive**
-  - Scales with screen size
-  - Card size and globe radius auto-adjust
-  - Works smoothly on modern trackpads
+- 🌍 **3D Transparent Globe** with cards wrapped around the surface  
+- 🧭 **Smooth rotation** (drag, touch, trackpad friendly)  
+- 🪐 **Starfield & meteor animations** for depth and atmosphere  
+- 🌓 **Dark mode (default) + Light mode toggle**  
+- 🗂️ **Browse mode** with Grid & List views  
+- 🪟 **Rich modal popups** for Experience, Skills, Education & Links  
+- 📱 **Mobile-optimized mode** for stability and performance  
+- 🎯 **Business-focused storytelling** for recruiters and employers  
 
 ---
 
-## 🛠 Tech Stack
+## 🧰 Tech Stack
 
-- **React 18**
-- **Vite**
-- **Framer Motion** (animations & transitions)
+- **React + Vite**
+- **Tailwind CSS**
+- **Framer Motion**
 - **Lucide Icons**
-- **Canvas API** (stars & meteors)
-- **Modern CSS / Utility-first styling**
-
-No heavy 3D libraries — everything is intentionally lightweight and handcrafted.
+- **Canvas API** (starfield & meteors)
 
 ---
 
 ## 🚀 Getting Started
 
-### Prerequisites
-- Node.js 18+
-- npm
-
-### Installation
-
+### Install dependencies
 ```bash
-git clone https://github.com/srinugalla/sgalla.ie.git
-cd sgalla.ie
 npm install
 ````
 
@@ -107,66 +71,75 @@ npm install
 npm run dev
 ```
 
-Open:
+Then open:
 
 ```
-http://localhost:5173
+http://localhost:5173/
 ```
 
----
+### Build for production
 
-## 📂 Project Structure
-
-```
-├── index.html
-├── package.json
-├── public/
-│   └── profile.png
-└── src/
-    ├── App.jsx        # Main application (globe, UI, logic)
-    ├── main.jsx       # React entry point
-    └── index.css      # Global styles
+```bash
+npm run build
+npm run preview
 ```
 
 ---
 
-## 🎯 Design Philosophy
+## 📁 Project Structure
 
-* **Show, don’t list** — information is explored, not dumped
-* **Motion with purpose** — animations guide attention, not distract
-* **Calm professionalism** — premium feel without visual noise
-* **Performance first** — smooth on everyday hardware
-
-This portfolio is meant to feel like a **product**, not a résumé.
-
----
-
-## 🔗 Links
-
-* **LinkedIn:** [https://www.linkedin.com/in/sgalla/](https://www.linkedin.com/in/sgalla/)
-* **GitHub:** [https://github.com/srinugalla](https://github.com/srinugalla)
-* **Email:** [srinu.galla@gmail.com](mailto:srinu.galla@gmail.com)
-
----
-
-## 📌 Roadmap (Ideas)
-
-* Card auto-focus animation before popup
-* Filters (Experience / Skills / Education)
-* Mobile-optimized interaction mode
-* Deployment to production domain
-* Accessibility improvements
+```txt
+.
+├─ index.html
+├─ public/
+│  └─ preview.gif          # Screen recording used in README
+├─ src/
+│  ├─ App.jsx              # Main globe + UI logic
+│  ├─ main.jsx             # React entry point
+│  └─ index.css            # Tailwind + small custom styles
+├─ tailwind.config.js
+├─ postcss.config.js
+└─ package.json
+```
 
 ---
 
-## 👤 Author
+## 🛠️ Customization
 
-**Srinivasarao Galla**
-DevOps Engineer — Dublin, Ireland
+All portfolio content lives in **`src/App.jsx`**, including:
 
-Cloud • CI/CD • Kubernetes • Infrastructure as Code
-Building reliable systems with clarity and intent.
+* About Me
+* Experience timeline
+* Skills
+* Education
+* Social & contact links
+
+The globe, card sizes, and mobile behavior are all configurable from the same file.
 
 ---
 
-⭐ If this project inspired you, feel free to star the repo.
+## ☁️ Deployment
+
+This project is deployed using **Vercel**:
+
+* Framework: **Vite**
+* Build command: `npm run build`
+* Output directory: `dist`
+
+---
+
+## 📜 License
+
+This is a **personal portfolio project**.
+If you wish to reuse or adapt it, please credit:
+
+**© Srinivasarao Galla — [www.sgalla.ie](http://www.sgalla.ie)**
+
+---
+
+## 📬 Contact
+
+- **Website:** https://sgalla.ie  
+- **LinkedIn:** https://www.linkedin.com/in/sgalla/
+- **GitHub:** https://github.com/srinugalla
+- **Email:** srinu.galla@gmail.com
