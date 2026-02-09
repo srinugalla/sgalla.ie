@@ -121,14 +121,7 @@ function Starfield({ density = 700, theme = "dark" }) {
 
       const starRGB = theme === "light" ? "0,0,0" : "255,255,255";
 
-      const g = ctx.createRadialGradient(
-        w * 0.5,
-        h * 0.5,
-        60,
-        w * 0.5,
-        h * 0.5,
-        Math.max(w, h) * 0.95
-      );
+      const g = ctx.createRadialGradient(w * 0.5, h * 0.5, 60, w * 0.5, h * 0.5, Math.max(w, h) * 0.95);
       if (theme === "light") {
         g.addColorStop(0, "rgba(0,0,0,0.02)");
         g.addColorStop(1, "rgba(255,255,255,0)");
@@ -256,43 +249,24 @@ function Modal({ open, onClose, title, children, theme = "dark" }) {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          className="fixed inset-0 z-50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
+        <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <div className={cn("absolute inset-0 backdrop-blur", overlay)} onClick={onClose} />
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <motion.div
-              className={cn(
-                "w-[min(980px,92vw)] overflow-hidden rounded-3xl border shadow-[0_20px_90px_rgba(0,0,0,0.35)]",
-                panel
-              )}
+              className={cn("w-[min(980px,92vw)] overflow-hidden rounded-3xl border shadow-[0_20px_90px_rgba(0,0,0,0.35)]", panel)}
               initial={{ y: 18, scale: 0.98, opacity: 0 }}
               animate={{ y: 0, scale: 1, opacity: 1 }}
               exit={{ y: 12, scale: 0.99, opacity: 0 }}
               transition={{ type: "spring", stiffness: 220, damping: 26 }}
             >
               <div className={cn("flex items-center justify-between border-b px-5 py-4", headerBorder)}>
-                <div className={cn("text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>
-                  {title}
-                </div>
-                <button
-                  onClick={onClose}
-                  className={cn("rounded-full border p-2 transition", closeBtn)}
-                  aria-label="Close"
-                >
+                <div className={cn("text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>{title}</div>
+                <button onClick={onClose} className={cn("rounded-full border p-2 transition", closeBtn)} aria-label="Close">
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div
-                className={cn(
-                  "max-h-[78vh] overflow-y-auto p-5 text-sm leading-6",
-                  theme === "light" ? "text-black/80" : "text-white/75"
-                )}
-              >
+              <div className={cn("max-h-[78vh] overflow-y-auto p-5 text-sm leading-6", theme === "light" ? "text-black/80" : "text-white/75")}>
                 {children}
               </div>
             </motion.div>
@@ -304,7 +278,7 @@ function Modal({ open, onClose, title, children, theme = "dark" }) {
 }
 
 /* --------------------------------- Globe --------------------------------- */
-function Globe({ items, onSelect, theme = "dark" }) {
+function Globe({ items, onSelect, theme = "dark", isMobile = false }) {
   const wrapRef = useRef(null);
   const innerRef = useRef(null);
   const rafRef = useRef(0);
@@ -318,32 +292,31 @@ function Globe({ items, onSelect, theme = "dark" }) {
   const [wrapSize, setWrapSize] = useState(960);
   const [cardScale, setCardScale] = useState(1);
 
-  // ✅ FIX #1: Mobile-fit sizing (strictly fits inside viewport)
-  // ✅ FIX #2: Prevent "side drift" by never exceeding available width
+  // ✅ Mobile-fit sizing + bigger radius to reduce overlap
   useEffect(() => {
     const onResize = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
 
-      const pad = w < 640 ? 14 : 24;          // side padding
-      const safeTop = w < 640 ? 160 : 102;    // header space
-      const safeBottom = w < 640 ? 104 : 96;  // bottom hint space
+      const mobile = w < 640;
+      const pad = mobile ? 14 : 24;
+      const safeTop = mobile ? 170 : 102;
+      const safeBottom = mobile ? 116 : 96;
 
       const maxByWidth = Math.max(300, w - pad * 2);
       const maxByHeight = Math.max(300, h - safeTop - safeBottom);
 
-      // The globe wrapper should NEVER exceed either axis
       const usable = clamp(Math.min(maxByWidth, maxByHeight), 300, 1100);
 
       const ws = Math.floor(usable);
       setWrapSize(ws);
 
-      // Radius tuned so cards don't clip on mobile
-      const r = clamp(Math.floor(ws * (w < 640 ? 0.44 : 0.47)), 150, 520);
+      // bigger radius on mobile (pushes cards apart visually)
+      const r = clamp(Math.floor(ws * (mobile ? 0.52 : 0.47)), 150, 520);
       setR(r);
 
-      // Slightly smaller on mobile
-      setCardScale(clamp(usable / 1200, w < 640 ? 0.72 : 0.78, 1.02));
+      // smaller cards on mobile
+      setCardScale(clamp(usable / 1200, mobile ? 0.60 : 0.78, 1.02));
     };
 
     onResize();
@@ -351,11 +324,13 @@ function Globe({ items, onSelect, theme = "dark" }) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // ✅ Spread cards more on mobile (reduce pole crowding)
   const points = useMemo(() => {
     const n = items.length;
     const pts = [];
     const phi = Math.PI * (3 - Math.sqrt(5));
-    const poleClamp = 0.975;
+    const poleClamp = isMobile ? 0.90 : 0.975; // smaller = less pole packing
+
     for (let i = 0; i < n; i++) {
       const y = lerp(poleClamp, -poleClamp, i / (n - 1));
       const r = Math.sqrt(1 - y * y);
@@ -365,7 +340,7 @@ function Globe({ items, onSelect, theme = "dark" }) {
       pts.push({ lon: Math.atan2(x, z), lat: Math.asin(y) });
     }
     return pts;
-  }, [items.length]);
+  }, [items.length, isMobile]);
 
   useEffect(() => {
     let last = performance.now();
@@ -401,7 +376,7 @@ function Globe({ items, onSelect, theme = "dark" }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // ✅ FIX #3: Better touch feel (mobile finger drag is more responsive)
+  // ✅ Better finger feel on mobile
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -425,16 +400,14 @@ function Globe({ items, onSelect, theme = "dark" }) {
       drag.current.lx = e.clientX;
       drag.current.ly = e.clientY;
 
-      // touch: stronger response, mouse: normal
       const isTouch = drag.current.pointerType === "touch";
-      const k = isTouch ? 0.19 : 0.14;
+      const k = isTouch ? 0.22 : 0.14;
 
       rot.current.y += dx * k;
       rot.current.x -= dy * k;
       rot.current.x = clamp(rot.current.x, -55, 55);
 
-      // slightly more momentum for touch so it feels “grippy”
-      const mv = isTouch ? 0.075 : 0.055;
+      const mv = isTouch ? 0.08 : 0.055;
       vel.current.y = dx * mv;
       vel.current.x = -dy * mv;
     };
@@ -491,23 +464,19 @@ function Globe({ items, onSelect, theme = "dark" }) {
       <motion.div
         ref={wrapRef}
         className="relative select-none mx-auto"
-        // ✅ keep it centered & never exceed viewport width/height
         style={{
           width: wrapSize,
           height: wrapSize,
           maxWidth: "100%",
           maxHeight: "100%",
           perspective: "1200px",
-          touchAction: "none", // ✅ crucial for mobile finger drag stability
+          touchAction: "none",
         }}
         initial={{ opacity: 0, scale: 0.70, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 165, damping: 20 }}
       >
-        <div
-          className="pointer-events-none absolute inset-0 rounded-full"
-          style={{ background: specular, opacity: theme === "light" ? 0.18 : 0.22 }}
-        />
+        <div className="pointer-events-none absolute inset-0 rounded-full" style={{ background: specular, opacity: theme === "light" ? 0.18 : 0.22 }} />
 
         <div className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
           <div ref={innerRef} className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
@@ -526,6 +495,17 @@ function Globe({ items, onSelect, theme = "dark" }) {
               const pal = it.palette ?? pickPalette(it.company || it.title || it.id);
               const bgA = theme === "light" ? `${pal.a}18` : `${pal.a}22`;
               const bgB = theme === "light" ? `${pal.b}12` : `${pal.b}16`;
+
+              // ✅ Mobile performance: NO blur + lighter shadow
+              const perfClasses = isMobile ? "backdrop-blur-0" : "backdrop-blur-md";
+              const perfShadow =
+                theme === "light"
+                  ? isMobile
+                    ? "0 6px 14px rgba(0,0,0,0.05)"
+                    : "0 10px 22px rgba(0,0,0,0.06)"
+                  : isMobile
+                    ? "0 10px 26px rgba(0,0,0,0.35)"
+                    : "0 14px 40px rgba(0,0,0,0.42)";
 
               return (
                 <button
@@ -547,42 +527,29 @@ function Globe({ items, onSelect, theme = "dark" }) {
                   }}
                 >
                   <div
-                    className={cn(
-                      "relative h-full w-full overflow-hidden rounded-2xl border backdrop-blur-md transition",
-                      cardBorder,
-                      cardBg
-                    )}
+                    className={cn("relative h-full w-full overflow-hidden rounded-2xl border transition", cardBorder, cardBg, perfClasses)}
                     style={{
                       background: `radial-gradient(circle at 22% 18%, ${bgA}, rgba(255,255,255,0.08) 32%, rgba(0,0,0,0) 72%), linear-gradient(135deg, ${bgA}, ${bgB} 60%, rgba(0,0,0,0))`,
-                      boxShadow:
-                        theme === "light"
-                          ? "0 10px 22px rgba(0,0,0,0.06)"
-                          : "0 14px 40px rgba(0,0,0,0.42)",
+                      boxShadow: perfShadow,
                     }}
                   >
                     <div className="flex items-start justify-between gap-2 p-3">
                       <div className="flex items-center gap-2 min-w-0">
                         <div
                           className={cn(
-                            "grid h-9 w-9 place-items-center rounded-xl border border-white/10 font-extrabold",
+                            "grid place-items-center rounded-xl border border-white/10 font-extrabold",
                             theme === "light" ? "bg-black/[0.04] text-black/75" : "bg-black/40 text-white/85"
                           )}
-                          style={{ fontSize: 10 }}
+                          style={{ width: isMobile ? 32 : 36, height: isMobile ? 32 : 36, fontSize: 10 }}
                         >
                           {it.logoText ? it.logoText : initials(it.company || it.title)}
                         </div>
 
                         <div className="min-w-0 text-left">
-                          <div
-                            className={cn("line-clamp-2 font-semibold leading-[14px]", textMain)}
-                            style={{ fontSize: 11 }}
-                          >
+                          <div className={cn("line-clamp-2 font-semibold leading-[14px]", textMain)} style={{ fontSize: isMobile ? 10 : 11 }}>
                             {it.company || it.title}
                           </div>
-                          <div
-                            className={cn("mt-0.5 line-clamp-1 leading-[14px]", textSub)}
-                            style={{ fontSize: 10 }}
-                          >
+                          <div className={cn("mt-0.5 line-clamp-1 leading-[14px]", textSub)} style={{ fontSize: isMobile ? 9 : 10 }}>
                             {it.title}
                           </div>
                         </div>
@@ -593,7 +560,7 @@ function Globe({ items, onSelect, theme = "dark" }) {
                       </div>
                     </div>
 
-                    <div className={cn("px-3 pb-3 text-left leading-[14px]", textSub)} style={{ fontSize: 10 }}>
+                    <div className={cn("px-3 pb-3 text-left leading-[14px]", textSub)} style={{ fontSize: isMobile ? 9 : 10 }}>
                       <span className="line-clamp-2">{it.meta || ""}</span>
                     </div>
                   </div>
@@ -628,19 +595,13 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, name
               SG
             </div>
             <div className="min-w-0">
-              <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>
-                {nameText}
-              </div>
-              <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>
-                DevOps Engineer • Dublin, Ireland
-              </div>
+              <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black" : "text-white")}>{nameText}</div>
+              <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>DevOps Engineer • Dublin, Ireland</div>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <button onClick={onAbout} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
-              About
-            </button>
+            <button onClick={onAbout} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>About</button>
 
             <button onClick={onToggleTheme} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
               <span className="inline-flex items-center gap-2">
@@ -659,9 +620,7 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, name
               <RotateCcw className="h-4 w-4" />
             </button>
 
-            <button onClick={onContact} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
-              Contact
-            </button>
+            <button onClick={onContact} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>Contact</button>
           </div>
         </div>
       </div>
@@ -704,9 +663,7 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
                   onClick={() => onPick(c)}
                   className={cn(
                     "group relative overflow-hidden rounded-2xl border p-3 text-left transition",
-                    theme === "light"
-                      ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]"
-                      : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
+                    theme === "light" ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
                   )}
                   style={{
                     background: `radial-gradient(circle at 24% 20%, ${a}, rgba(255,255,255,0.08) 30%, rgba(0,0,0,0) 62%), linear-gradient(135deg, ${a}, ${b} 55%, rgba(0,0,0,0))`,
@@ -717,40 +674,22 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
                       <div
                         className={cn(
                           "grid h-9 w-9 place-items-center rounded-xl border text-xs font-extrabold",
-                          theme === "light"
-                            ? "border-black/10 bg-white/75 text-black/75"
-                            : "border-white/12 bg-black/30 text-white/85"
+                          theme === "light" ? "border-black/10 bg-white/75 text-black/75" : "border-white/12 bg-black/30 text-white/85"
                         )}
                       >
                         {c.logoText ? c.logoText : initials(c.company || c.title)}
                       </div>
                       <div className="min-w-0">
-                        <div
-                          className={cn(
-                            "truncate text-xs font-semibold",
-                            theme === "light" ? "text-black/80" : "text-white/85"
-                          )}
-                        >
+                        <div className={cn("truncate text-xs font-semibold", theme === "light" ? "text-black/80" : "text-white/85")}>
                           {c.company || c.title}
                         </div>
-                        <div className={cn("mt-0.5 line-clamp-1 text-[12px]", theme === "light" ? "text-black/55" : "text-white/60")}>
-                          {c.title}
-                        </div>
+                        <div className={cn("mt-0.5 line-clamp-1 text-[12px]", theme === "light" ? "text-black/55" : "text-white/60")}>{c.title}</div>
                       </div>
                     </div>
-                    <ArrowUpRight
-                      className={cn(
-                        "h-4 w-4 shrink-0 transition",
-                        theme === "light" ? "text-black/50 group-hover:text-black/75" : "text-white/55 group-hover:text-white/80"
-                      )}
-                    />
+                    <ArrowUpRight className={cn("h-4 w-4 shrink-0 transition", theme === "light" ? "text-black/50 group-hover:text-black/75" : "text-white/55 group-hover:text-white/80")} />
                   </div>
 
-                  {c.meta && (
-                    <div className={cn("mt-2 line-clamp-2 text-[12px] leading-4", theme === "light" ? "text-black/55" : "text-white/60")}>
-                      {c.meta}
-                    </div>
-                  )}
+                  {c.meta && <div className={cn("mt-2 line-clamp-2 text-[12px] leading-4", theme === "light" ? "text-black/55" : "text-white/60")}>{c.meta}</div>}
                 </button>
               );
             })}
@@ -769,9 +708,7 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
                   onClick={() => onPick(c)}
                   className={cn(
                     "group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition",
-                    theme === "light"
-                      ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]"
-                      : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
+                    theme === "light" ? "border-black/10 bg-black/[0.03] hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
                   )}
                   style={{
                     background: `radial-gradient(circle at 22% 20%, ${a}, rgba(255,255,255,0.06) 32%, rgba(0,0,0,0) 62%), linear-gradient(135deg, ${a}, ${b} 55%, rgba(0,0,0,0))`,
@@ -781,28 +718,17 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
                     <div
                       className={cn(
                         "grid h-10 w-10 place-items-center rounded-xl border text-xs font-extrabold",
-                        theme === "light"
-                          ? "border-black/10 bg-white/75 text-black/75"
-                          : "border-white/12 bg-black/30 text-white/85"
+                        theme === "light" ? "border-black/10 bg-white/75 text-black/75" : "border-white/12 bg-black/30 text-white/85"
                       )}
                     >
                       {c.logoText ? c.logoText : initials(c.company || c.title)}
                     </div>
                     <div className="min-w-0">
-                      <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black/85" : "text-white/90")}>
-                        {c.title}
-                      </div>
-                      <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>
-                        {c.company || c.meta || ""}
-                      </div>
+                      <div className={cn("truncate text-sm font-semibold", theme === "light" ? "text-black/85" : "text-white/90")}>{c.title}</div>
+                      <div className={cn("truncate text-xs", theme === "light" ? "text-black/55" : "text-white/55")}>{c.company || c.meta || ""}</div>
                     </div>
                   </div>
-                  <ArrowUpRight
-                    className={cn(
-                      "h-4 w-4 transition",
-                      theme === "light" ? "text-black/50 group-hover:text-black/75" : "text-white/55 group-hover:text-white/80"
-                    )}
-                  />
+                  <ArrowUpRight className={cn("h-4 w-4 transition", theme === "light" ? "text-black/50 group-hover:text-black/75" : "text-white/55 group-hover:text-white/80")} />
                 </button>
               );
             })}
@@ -854,6 +780,14 @@ export default function App() {
   const [contactOpen, setContactOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [selected, setSelected] = useState(null);
+
+  // ✅ detect mobile for globe optimization
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 640 : false));
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const nameText = useBinaryReveal("Srinivasarao Galla", { durationMs: 1250, settleMs: 160 });
 
@@ -949,77 +883,17 @@ export default function App() {
     ];
 
     const education = [
-      {
-        id: "edu-mba",
-        type: "education",
-        title: "MBA in Marketing",
-        school: "University of Wales Trinity Saint David",
-        location: "London, UK",
-        period: "2010 – 2011",
-        details: "Master of Business Administration in Marketing.",
-        relatedSkillIds: ["collaboration", "pm"],
-      },
-      {
-        id: "edu-bsc",
-        type: "education",
-        title: "B.Sc (Maths, Physics, Chemistry)",
-        school: "Gowtham Degree College (A.N. University)",
-        location: "Vijayawada, India",
-        period: "2004–2005, 2007–2009",
-        details: "Strong analytical and problem-solving foundation.",
-        relatedSkillIds: ["tooling"],
-      },
-      {
-        id: "edu-ded",
-        type: "education",
-        title: "Diploma in Education (D.Ed)",
-        school: "D.I.E.T, Krishna District",
-        location: "India",
-        period: "2005 – 2007",
-        details: "Communication and structured learning approaches.",
-        relatedSkillIds: ["collaboration"],
-      },
+      { id: "edu-mba", type: "education", title: "MBA in Marketing", school: "University of Wales Trinity Saint David", location: "London, UK", period: "2010 – 2011", details: "Master of Business Administration in Marketing.", relatedSkillIds: ["collaboration", "pm"] },
+      { id: "edu-bsc", type: "education", title: "B.Sc (Maths, Physics, Chemistry)", school: "Gowtham Degree College (A.N. University)", location: "Vijayawada, India", period: "2004–2005, 2007–2009", details: "Strong analytical and problem-solving foundation.", relatedSkillIds: ["tooling"] },
+      { id: "edu-ded", type: "education", title: "Diploma in Education (D.Ed)", school: "D.I.E.T, Krishna District", location: "India", period: "2005 – 2007", details: "Communication and structured learning approaches.", relatedSkillIds: ["collaboration"] },
     ];
 
-    const principles = [
-      "Automate the boring parts.",
-      "Prefer repeatability over heroics.",
-      "Observability is a feature.",
-      "Small changes, shipped often.",
-    ];
+    const principles = ["Automate the boring parts.", "Prefer repeatability over heroics.", "Observability is a feature.", "Small changes, shipped often."];
 
     const baseCards = [
-      ...experiences.map((e) => ({
-        id: e.id,
-        baseId: e.id,
-        type: "experience",
-        title: e.title,
-        company: e.company,
-        logoText: initials(e.company),
-        meta: e.meta,
-        palette: pickPalette(e.company),
-      })),
-      ...Object.values(skills).map((s) => ({
-        id: `skill-${s.id}`,
-        baseId: `skill-${s.id}`,
-        type: "skill",
-        title: s.title,
-        company: s.subtitle,
-        logoText: initials(s.title),
-        meta: s.desc,
-        palette: pickPalette(s.title),
-        skillId: s.id,
-      })),
-      ...education.map((e) => ({
-        id: e.id,
-        baseId: e.id,
-        type: "education",
-        title: e.title,
-        company: e.school,
-        logoText: initials(e.school),
-        meta: e.period,
-        palette: pickPalette(e.school),
-      })),
+      ...experiences.map((e) => ({ id: e.id, baseId: e.id, type: "experience", title: e.title, company: e.company, logoText: initials(e.company), meta: e.meta, palette: pickPalette(e.company) })),
+      ...Object.values(skills).map((s) => ({ id: `skill-${s.id}`, baseId: `skill-${s.id}`, type: "skill", title: s.title, company: s.subtitle, logoText: initials(s.title), meta: s.desc, palette: pickPalette(s.title), skillId: s.id })),
+      ...education.map((e) => ({ id: e.id, baseId: e.id, type: "education", title: e.title, company: e.school, logoText: initials(e.school), meta: e.period, palette: pickPalette(e.school) })),
     ];
 
     const expanded = [];
@@ -1036,43 +910,20 @@ export default function App() {
     }
 
     const socials = [
-      {
-        id: "social-linkedin",
-        baseId: "social-linkedin",
-        type: "link",
-        title: "LinkedIn",
-        company: "Connect",
-        logoText: "in",
-        meta: "Open my LinkedIn profile",
-        palette: pickPalette("LinkedIn"),
-        url: "https://www.linkedin.com/in/sgalla/",
-      },
-      {
-        id: "social-github",
-        baseId: "social-github",
-        type: "link",
-        title: "GitHub",
-        company: "Projects",
-        logoText: "GH",
-        meta: "Open my GitHub repositories",
-        palette: pickPalette("GitHub"),
-        url: "https://github.com/srinugalla/srinugalla",
-      },
-      {
-        id: "social-email",
-        baseId: "social-email",
-        type: "link",
-        title: "Email",
-        company: "srinu.galla@gmail.com",
-        logoText: "@",
-        meta: "Send me an email",
-        palette: pickPalette("Email"),
-        url: "mailto:srinu.galla@gmail.com",
-      },
+      { id: "social-linkedin", baseId: "social-linkedin", type: "link", title: "LinkedIn", company: "Connect", logoText: "in", meta: "Open my LinkedIn profile", palette: pickPalette("LinkedIn"), url: "https://www.linkedin.com/in/sgalla/" },
+      { id: "social-github", baseId: "social-github", type: "link", title: "GitHub", company: "Projects", logoText: "GH", meta: "Open my GitHub repositories", palette: pickPalette("GitHub"), url: "https://github.com/srinugalla/srinugalla" },
+      { id: "social-email", baseId: "social-email", type: "link", title: "Email", company: "srinu.galla@gmail.com", logoText: "@", meta: "Send me an email", palette: pickPalette("Email"), url: "mailto:srinu.galla@gmail.com" },
     ];
 
     return { items: [...expanded.slice(0, 28), ...socials], experiences, education, skills, principles };
   }, []);
+
+  // ✅ Mobile perf: fewer globe items (BIGGEST improvement)
+  const globeItems = useMemo(() => {
+    if (!isMobile) return data.items;
+    // keep variety but cut count heavily
+    return data.items.slice(0, 16);
+  }, [data.items, isMobile]);
 
   const browseCards = useMemo(() => {
     const seen = new Set();
@@ -1298,7 +1149,7 @@ export default function App() {
         onContact={() => setContactOpen(true)}
       />
 
-      {!browseOpen && <Globe items={data.items} theme={theme} onSelect={(it) => setSelected(it)} />}
+      {!browseOpen && <Globe items={globeItems} isMobile={isMobile} theme={theme} onSelect={(it) => setSelected(it)} />}
 
       <BrowseView
         open={browseOpen}
@@ -1436,12 +1287,7 @@ export default function App() {
 
       <div className="fixed inset-x-0 bottom-6 z-30">
         <div className="mx-auto flex max-w-6xl items-center justify-center px-4">
-          <div
-            className={cn(
-              "rounded-full border px-4 py-2 text-[11px] font-semibold tracking-widest backdrop-blur",
-              theme === "light" ? "border-black/10 bg-white/70 text-black/60" : "border-white/12 bg-black/35 text-white/70"
-            )}
-          >
+          <div className={cn("rounded-full border px-4 py-2 text-[11px] font-semibold tracking-widest backdrop-blur", theme === "light" ? "border-black/10 bg-white/70 text-black/60" : "border-white/12 bg-black/35 text-white/70")}>
             DRAG / TRACKPAD SWIPE • CLICK CARD • BROWSE GRID/LIST
           </div>
         </div>
