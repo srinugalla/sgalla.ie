@@ -104,18 +104,21 @@ function rgba(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/* ----------------------------- Starfield + Meteors ----------------------------- */
+/* ----------------------------- Starfield (+ meteors) ----------------------------- */
+/* ✅ FIXED: spawnAcc + drawMeteor + consistent time units */
 function Starfield({ density = 650, theme = "dark" }) {
   const ref = useRef(null);
   const raf = useRef(0);
   const stars = useRef([]);
   const meteors = useRef([]);
   const sizeRef = useRef({ w: window.innerWidth, h: window.innerHeight });
-  const lastT = useRef(performance.now());
+  const lastT = useRef(0);
   const spawnAcc = useRef(0);
 
   useEffect(() => {
     const canvas = ref.current;
+    if (!canvas) return;
+
     const ctx = canvas.getContext("2d", { alpha: true });
 
     const resize = () => {
@@ -141,96 +144,67 @@ function Starfield({ density = 650, theme = "dark" }) {
         ph: Math.random() * Math.PI * 2,
       }));
 
-      meteors.current = meteors.current.filter((m) => m.x > -200 && m.x < w + 200 && m.y > -200 && m.y < h + 200);
+      meteors.current = meteors.current.slice(0, 2);
     };
 
     const spawnMeteor = () => {
       const { w, h } = sizeRef.current;
 
-      const fromLeft = Math.random() < 0.55;
-      const startX = fromLeft ? -60 : w + 60;
-      const startY = h * (0.10 + Math.random() * 0.55);
+      const fromTop = Math.random() < 0.74;
+      const x = fromTop ? Math.random() * w : -80;
+      const y = fromTop ? -80 : Math.random() * (h * 0.55);
 
-      const base = fromLeft ? Math.PI * 0.06 : Math.PI - Math.PI * 0.06;
-      const jitter = (Math.random() - 0.5) * (Math.PI * 0.10);
-      const ang = base + jitter + Math.random() * 0.10;
+      const ang = (Math.PI / 180) * (22 + Math.random() * 18);
+      const sp = (fromTop ? 920 : 820) * (0.85 + Math.random() * 0.4); // px/sec
 
-      const speed = 820 + Math.random() * 520;
-      const vx = Math.cos(ang) * speed;
-      const vy = Math.sin(ang) * speed;
-
-      const life = 0.95 + Math.random() * 0.60;
-      const len = 260 + Math.random() * 260;
-      const head = 2.4 + Math.random() * 1.6;
-
-      meteors.current.push({ x: startX, y: startY, vx, vy, t: 0, life, len, head });
-      if (meteors.current.length > 3) meteors.current.shift();
+      meteors.current.push({
+        x,
+        y,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp,
+        age: 0,
+        life: 0.55 + Math.random() * 0.35, // seconds
+        len: 120 + Math.random() * 160,
+        thick: 1.1 + Math.random() * 1.5,
+      });
     };
 
     const drawMeteor = (m) => {
-      const p = clamp(m.t / m.life, 0, 1);
-      const fadeIn = clamp(p / 0.10, 0, 1);
-      const fadeOut = clamp((1 - p) / 0.22, 0, 1);
-      const alpha = Math.min(fadeIn, fadeOut);
-      if (alpha <= 0.001) return;
+      const p = clamp(m.age / m.life, 0, 1);
+      const fade = 1 - p;
 
-      const mag = Math.hypot(m.vx, m.vy) || 1;
-      const ux = m.vx / mag;
-      const uy = m.vy / mag;
+      const dx = m.vx;
+      const dy = m.vy;
+      const mag = Math.max(0.001, Math.hypot(dx, dy));
+      const ux = dx / mag;
+      const uy = dy / mag;
 
-      const x2 = m.x;
-      const y2 = m.y;
-      const x1 = x2 - ux * m.len;
-      const y1 = y2 - uy * m.len;
+      const x2 = m.x - ux * m.len;
+      const y2 = m.y - uy * m.len;
 
-      const headColor = theme === "dark" ? "rgba(255, 240, 200, 1)" : "rgba(255, 80, 80, 1)";
-      const glowColor = theme === "dark" ? "rgba(255, 170, 70, 1)" : "rgba(210, 20, 20, 1)";
-
-      const grad = ctx.createLinearGradient(x1, y1, x2, y2);
-      if (theme === "dark") {
-        grad.addColorStop(0, `rgba(255,200,120,0)`);
-        grad.addColorStop(0.45, `rgba(255,180,90,${0.12 * alpha})`);
-        grad.addColorStop(0.78, `rgba(255,190,110,${0.26 * alpha})`);
-        grad.addColorStop(1, `rgba(255,230,190,${0.40 * alpha})`);
+      const g = ctx.createLinearGradient(m.x, m.y, x2, y2);
+      if (theme === "light") {
+        g.addColorStop(0, `rgba(0,0,0,${0.55 * fade})`);
+        g.addColorStop(1, `rgba(0,0,0,0)`);
       } else {
-        grad.addColorStop(0, `rgba(190,0,0,0)`);
-        grad.addColorStop(0.45, `rgba(255,40,40,${0.12 * alpha})`);
-        grad.addColorStop(0.78, `rgba(255,55,55,${0.26 * alpha})`);
-        grad.addColorStop(1, `rgba(255,95,95,${0.42 * alpha})`);
+        g.addColorStop(0, `rgba(255,255,255,${0.75 * fade})`);
+        g.addColorStop(1, `rgba(255,255,255,0)`);
       }
 
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
+
+      ctx.strokeStyle = g;
+      ctx.lineWidth = m.thick;
       ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = theme === "dark" ? 1.65 : 1.85;
       ctx.beginPath();
-      ctx.moveTo(x1, y1);
+      ctx.moveTo(m.x, m.y);
       ctx.lineTo(x2, y2);
       ctx.stroke();
 
-      ctx.strokeStyle = theme === "dark" ? `rgba(255,170,70,${0.10 * alpha})` : `rgba(220,20,20,${0.10 * alpha})`;
-      ctx.lineWidth = theme === "dark" ? 4.5 : 5.2;
       ctx.beginPath();
-      ctx.moveTo(lerp(x1, x2, 0.55), lerp(y1, y2, 0.55));
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-
-      const r = m.head;
-      const hg = ctx.createRadialGradient(x2, y2, 0, x2, y2, r * 10);
-      hg.addColorStop(0, `${headColor.replace("1)", `${0.75 * alpha})`)}`);
-      hg.addColorStop(0.35, `${glowColor.replace("1)", `${0.28 * alpha})`)}`);
-      hg.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = hg;
-      ctx.beginPath();
-      ctx.arc(x2, y2, r * 10, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = theme === "dark" ? `rgba(255,255,255,${0.50 * alpha})` : `rgba(255,220,220,${0.46 * alpha})`;
-      ctx.beginPath();
-      ctx.arc(x2, y2, r, 0, Math.PI * 2);
+      ctx.fillStyle = theme === "light" ? `rgba(0,0,0,${0.22 * fade})` : `rgba(255,255,255,${0.22 * fade})`;
+      ctx.arc(m.x, m.y, 2.2 + m.thick * 0.8, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.restore();
@@ -238,21 +212,23 @@ function Starfield({ density = 650, theme = "dark" }) {
 
     const draw = (t) => {
       const { w, h } = sizeRef.current;
-      const dt = Math.min(40, t - lastT.current);
+
+      const prev = lastT.current || t;
       lastT.current = t;
+      const dt = Math.min(40, t - prev) / 1000; // seconds
 
       ctx.clearRect(0, 0, w, h);
 
       const starRGB = theme === "light" ? "0,0,0" : "255,255,255";
-      const g = ctx.createRadialGradient(w * 0.5, h * 0.5, 60, w * 0.5, h * 0.5, Math.max(w, h) * 0.95);
+      const vg = ctx.createRadialGradient(w * 0.5, h * 0.5, 60, w * 0.5, h * 0.5, Math.max(w, h) * 0.95);
       if (theme === "light") {
-        g.addColorStop(0, "rgba(0,0,0,0.02)");
-        g.addColorStop(1, "rgba(255,255,255,0)");
+        vg.addColorStop(0, "rgba(0,0,0,0.02)");
+        vg.addColorStop(1, "rgba(255,255,255,0)");
       } else {
-        g.addColorStop(0, "rgba(255,255,255,0.015)");
-        g.addColorStop(1, "rgba(0,0,0,0)");
+        vg.addColorStop(0, "rgba(255,255,255,0.015)");
+        vg.addColorStop(1, "rgba(0,0,0,0)");
       }
-      ctx.fillStyle = g;
+      ctx.fillStyle = vg;
       ctx.fillRect(0, 0, w, h);
 
       for (const s of stars.current) {
@@ -263,10 +239,10 @@ function Starfield({ density = 650, theme = "dark" }) {
         ctx.fill();
       }
 
-      // Slightly higher frequency, still subtle. Mobile gets a touch more.
+      // Meteors: natural-ish spawn + cap active
       const area = w * h;
-      const basePerSec = area < 450_000 ? 0.26 : area < 900_000 ? 0.20 : 0.16;
-      spawnAcc.current += (dt / 1000) * basePerSec;
+      const basePerSec = area < 450_000 ? 0.22 : area < 900_000 ? 0.18 : 0.14;
+      spawnAcc.current += dt * basePerSec;
 
       while (spawnAcc.current > 1.0) {
         spawnAcc.current -= 1.0;
@@ -276,11 +252,13 @@ function Starfield({ density = 650, theme = "dark" }) {
 
       const next = [];
       for (const m of meteors.current) {
-        m.t += dt / 1000;
-        m.x += (m.vx * dt) / 1000;
-        m.y += (m.vy * dt) / 1000;
-        const alive = m.t < m.life;
-        const near = m.x > -400 && m.x < w + 400 && m.y > -400 && m.y < h + 400;
+        m.age += dt;
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+
+        const alive = m.age < m.life;
+        const near = m.x > -500 && m.x < w + 500 && m.y > -500 && m.y < h + 500;
+
         if (alive && near) {
           drawMeteor(m);
           next.push(m);
@@ -345,9 +323,7 @@ function Modal({ open, onClose, title, children, theme = "dark", origin }) {
                 </button>
               </div>
 
-              <div
-                className={cn("max-h-[78svh] overflow-y-auto p-5 text-sm leading-6 modal-scroll", theme === "light" ? "text-black/80" : "text-white/75")}
-              >
+              <div className={cn("max-h-[78svh] overflow-y-auto p-5 text-sm leading-6 modal-scroll", theme === "light" ? "text-black/80" : "text-white/75")}>
                 {children}
               </div>
             </motion.div>
@@ -363,14 +339,15 @@ function premiumSphereLayout(items, { isMobile }) {
   const n = items.length;
   if (!n) return new Map();
 
-  // Mobile: Fibonacci sphere (prevents “vertical line” artifacts)
   if (isMobile) {
     const out = new Map();
     const golden = Math.PI * (3 - Math.sqrt(5));
     for (let i = 0; i < n; i++) {
       const it = items[i];
+
       const t = (i + 0.5) / n;
       const y = 1 - 2 * t;
+
       let lat = Math.asin(clamp(y, -1, 1));
       let lon = (i * golden) % (Math.PI * 2);
 
@@ -380,6 +357,7 @@ function premiumSphereLayout(items, { isMobile }) {
 
       lon += jl;
       lat += jt;
+
       lat = clamp(lat, -1.50, 1.50);
 
       out.set(it.id, { lon, lat });
@@ -387,7 +365,6 @@ function premiumSphereLayout(items, { isMobile }) {
     return out;
   }
 
-  // Desktop: unchanged
   const bands = 8;
   const latMin = -1.30;
   const latMax = 1.30;
@@ -468,7 +445,6 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
   const cardNodesRef = useRef([]);
   const frameRef = useRef(0);
 
-  // Tap handling (simpler + less glitch)
   const tapRef = useRef({ downX: 0, downY: 0, moved: false, t: 0, pid: null });
 
   useEffect(() => {
@@ -515,12 +491,10 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
     cardNodesRef.current = Array.from(el.querySelectorAll("[data-card='1']"));
   }, [items.length]);
 
-  // ✅ Prevent page scroll / rubber band only while dragging globe
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
 
-    // Helps iOS: keep gestures within element
     el.style.touchAction = "none";
 
     const onTouchMove = (e) => {
@@ -531,7 +505,6 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
     return () => el.removeEventListener("touchmove", onTouchMove);
   }, []);
 
-  // ✅ Single RAF loop: rotate + depth update (less work = smoother)
   useEffect(() => {
     let raf = 0;
     let last = performance.now();
@@ -604,13 +577,11 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
     return () => cancelAnimationFrame(raf);
   }, [isMobile, theme]);
 
-  // Pointer-based drag (with preventDefault for iOS)
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
 
     const onDown = (e) => {
-      // Don’t start globe-drag when the user pressed on a card (tap to open).
       if (e.target?.closest?.("button[data-card='1']")) return;
 
       e.preventDefault?.();
@@ -661,7 +632,6 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
     };
   }, []);
 
-  // Wheel unchanged
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -764,7 +734,7 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
                   }}
                   onPointerDown={(e) => {
                     e.stopPropagation();
-                    e.preventDefault?.(); // avoids Safari scroll/selection quirks
+                    e.preventDefault?.();
                     tapRef.current.downX = e.clientX;
                     tapRef.current.downY = e.clientY;
                     tapRef.current.moved = false;
@@ -787,7 +757,6 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
                     e.preventDefault?.();
                     const dt = performance.now() - tapRef.current.t;
 
-                    // Simple + reliable: quick tap opens, otherwise ignore.
                     if (!tapRef.current.moved && dt < 700) {
                       onSelect(it, { x: e.clientX, y: e.clientY });
                     }
@@ -802,7 +771,6 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
                     className="relative h-full w-full"
                     style={{ transform: "scale(var(--depthScale, 1))", transition: "transform 120ms ease" }}
                     whileHover={!isMobile ? { scale: 1.06, y: -2 } : undefined}
-                    // ✅ reduce “glitch” feeling on mobile by removing tap scale animation there
                     whileTap={!isMobile ? { scale: 0.985 } : undefined}
                     transition={{ type: "spring", stiffness: 260, damping: 18 }}
                   >
@@ -941,7 +909,7 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, onHo
 
             <motion.button
               onClick={onBrowse}
-              className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold", showBrowseHint ? "hint-glow hint-sparkle" : "")}
+              className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold", showBrowseHint ? "hint-glow hint-sparkle-5" : "")}
               aria-label="Browse"
               title="Browse"
               animate={showBrowseHint ? { y: [0, -2, 0] } : { y: 0 }}
@@ -967,7 +935,6 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, onHo
 }
 
 /* ------------------------------- Browse View ------------------------------ */
-/* (unchanged from your version) */
 function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
   const pillBase = "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition";
   const active = theme === "light" ? "border-black/10 bg-black text-white" : "border-white/15 bg-white text-black";
@@ -1086,7 +1053,6 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
 }
 
 /* --------------------------- Popup resolver -------------------------- */
-/* (unchanged from your version) */
 function resolvePopupData(sel, data) {
   if (!sel) return null;
   const keyId = sel.baseId || sel.id;
@@ -1224,6 +1190,7 @@ export default function App() {
     return { items, experiences, education, skills, principles };
   }, [isMobile]);
 
+  // ✅ keep only ONE browseCards (your file had it twice)
   const browseCards = useMemo(() => {
     const seen = new Set();
     const out = [];
@@ -1238,6 +1205,7 @@ export default function App() {
 
   const rootBg = theme === "light" ? "bg-[#f5f7fb] text-black" : "bg-black text-white";
 
+  // ✅ keep only ONE reset (your file had it twice)
   const reset = () => {
     setSelected(null);
     setContactOpen(false);
@@ -1441,7 +1409,6 @@ export default function App() {
   };
 
   const AboutContent = () => {
-    // unchanged
     const card = theme === "light" ? "border-black/12 bg-white/88" : "border-white/12 bg-white/[0.03]";
     const section = theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]";
     const label = theme === "light" ? "text-black/55" : "text-white/55";
@@ -1493,7 +1460,13 @@ export default function App() {
             <a href="https://github.com/srinugalla/srinugalla" target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold", theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white")}>
               <Github className="h-4 w-4" /> GitHub
             </a>
-            <button onClick={() => { setAboutOpen(false); setContactOpen(true); }} className={cn("inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold border", theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white")}>
+            <button
+              onClick={() => {
+                setAboutOpen(false);
+                setContactOpen(true);
+              }}
+              className={cn("inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold border", theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white")}
+            >
               <Mail className="h-4 w-4" /> Contact
             </button>
           </div>
@@ -1539,26 +1512,6 @@ export default function App() {
         </div>
       </div>
     );
-  };
-
-  const browseCards = useMemo(() => {
-    const seen = new Set();
-    const out = [];
-    for (const c of data.items) {
-      const key = c.baseId || c.id;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ ...c, id: key });
-    }
-    return out;
-  }, [data.items]);
-
-  const reset = () => {
-    setSelected(null);
-    setContactOpen(false);
-    setBrowseOpen(false);
-    setAboutOpen(false);
-    setModalOrigin(null);
   };
 
   return (
@@ -1618,10 +1571,42 @@ export default function App() {
           </div>
 
           {[
-            { href: "mailto:srinu.galla@gmail.com", left: <><Mail className="h-4 w-4" /> srinu.galla@gmail.com</>, ext: false },
-            { href: "https://github.com/srinugalla/srinugalla", left: <><Github className="h-4 w-4" /> GitHub</>, ext: true },
-            { href: "https://www.linkedin.com/in/sgalla/", left: <><Linkedin className="h-4 w-4" /> LinkedIn</>, ext: true },
-            { href: "tel:+353866005678", left: <><Phone className="h-4 w-4" /> +353 86 600 5678</>, ext: false },
+            {
+              href: "mailto:srinu.galla@gmail.com",
+              left: (
+                <>
+                  <Mail className="h-4 w-4" /> srinu.galla@gmail.com
+                </>
+              ),
+              ext: false,
+            },
+            {
+              href: "https://github.com/srinugalla/srinugalla",
+              left: (
+                <>
+                  <Github className="h-4 w-4" /> GitHub
+                </>
+              ),
+              ext: true,
+            },
+            {
+              href: "https://www.linkedin.com/in/sgalla/",
+              left: (
+                <>
+                  <Linkedin className="h-4 w-4" /> LinkedIn
+                </>
+              ),
+              ext: true,
+            },
+            {
+              href: "tel:+353866005678",
+              left: (
+                <>
+                  <Phone className="h-4 w-4" /> +353 86 600 5678
+                </>
+              ),
+              ext: false,
+            },
           ].map((row, i) => (
             <a
               key={i}
@@ -1640,7 +1625,13 @@ export default function App() {
         </div>
       </Modal>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.company ? `${selected.company}` : selected?.title || "Details"} theme={theme} origin={modalOrigin || undefined}>
+      <Modal
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected?.company ? `${selected.company}` : selected?.title || "Details"}
+        theme={theme}
+        origin={modalOrigin || undefined}
+      >
         <DetailsModal />
       </Modal>
 
@@ -1654,7 +1645,7 @@ export default function App() {
             onClick={openBrowse}
             className={cn(
               "hint-glow-soft rounded-full border backdrop-blur transition relative",
-              showBrowseHint ? "hint-sparkle-soft" : "",
+              showBrowseHint ? "hint-sparkle-5-soft" : "",
               theme === "light" ? "border-black/10 bg-white/80 text-black/65 hover:bg-white" : "border-white/12 bg-black/35 text-white/75 hover:bg-black/45",
               isMobile ? "px-3 py-1.5 text-[10px] font-semibold tracking-wide" : "px-4 py-2 text-[11px] font-semibold tracking-widest"
             )}
