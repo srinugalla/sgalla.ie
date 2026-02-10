@@ -105,18 +105,19 @@ function rgba(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/* ----------------------------- Starfield (+ meteors) ----------------------------- */
+/* ----------------------------- Starfield + Meteors ----------------------------- */
 function Starfield({ density = 650, theme = "dark" }) {
   const ref = useRef(null);
   const raf = useRef(0);
   const stars = useRef([]);
   const meteors = useRef([]);
   const sizeRef = useRef({ w: window.innerWidth, h: window.innerHeight });
-  const lastT = useRef(0);
+  const lastT = useRef(performance.now());
+  const spawnAcc = useRef(0);
 
   useEffect(() => {
     const canvas = ref.current;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: true });
 
     const resize = () => {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -141,43 +142,143 @@ function Starfield({ density = 650, theme = "dark" }) {
         ph: Math.random() * Math.PI * 2,
       }));
 
-      // keep meteors sane after resize
-      meteors.current = meteors.current.slice(0, 2);
+      // keep existing meteors valid after resize
+      meteors.current = meteors.current.filter((m) => m.x > -200 && m.x < w + 200 && m.y > -200 && m.y < h + 200);
     };
 
     const spawnMeteor = () => {
       const { w, h } = sizeRef.current;
 
-      // Spawn near top / upper-left and streak down-right.
-      const fromTop = Math.random() < 0.74;
-      const x = fromTop ? Math.random() * w : -60;
-      const y = fromTop ? -60 : Math.random() * (h * 0.55);
+      // subtle, background, cinematic diagonal streak like reference
+      // Spawn slightly off-screen so tail "enters"
+      const fromLeft = Math.random() < 0.55;
+      const startX = fromLeft ? -60 : w + 60;
+      const startY = h * (0.10 + Math.random() * 0.55);
 
-      const ang = (Math.PI / 180) * (22 + Math.random() * 18);
-      const sp = (fromTop ? 920 : 820) * (0.85 + Math.random() * 0.4);
+      // Angle: mostly left->right or right->left with slight downward drift
+      const base = fromLeft ? Math.PI * 0.06 : Math.PI - Math.PI * 0.06; // ~10deg
+      const jitter = (Math.random() - 0.5) * (Math.PI * 0.10); // +/- 9deg
+      const ang = base + jitter + (Math.random() * 0.10); // tiny downward component
+
+      const speed = 820 + Math.random() * 520; // px/sec
+      const vx = Math.cos(ang) * speed;
+      const vy = Math.sin(ang) * speed;
+
+      const life = 0.95 + Math.random() * 0.60; // seconds
+      const len = 260 + Math.random() * 260; // tail length px
+      const head = 2.4 + Math.random() * 1.6; // head radius
 
       meteors.current.push({
-        x,
-        y,
-        vx: Math.cos(ang) * sp,
-        vy: Math.sin(ang) * sp,
-        age: 0,
-        life: 0.55 + Math.random() * 0.35, // seconds
-        len: 120 + Math.random() * 160,
-        thick: 1.1 + Math.random() * 1.5,
+        x: startX,
+        y: startY,
+        vx,
+        vy,
+        t: 0,
+        life,
+        len,
+        head,
       });
+
+      // hard cap for performance
+      if (meteors.current.length > 3) meteors.current.shift();
+    };
+
+    const drawMeteor = (m) => {
+      const p = clamp(m.t / m.life, 0, 1);
+
+      // fade-in then fade-out (subtle)
+      const fadeIn = clamp(p / 0.10, 0, 1);
+      const fadeOut = clamp((1 - p) / 0.22, 0, 1);
+      const alpha = Math.min(fadeIn, fadeOut);
+
+      if (alpha <= 0.001) return;
+
+      const dx = m.vx;
+      const dy = m.vy;
+      const mag = Math.hypot(dx, dy) || 1;
+      const ux = dx / mag;
+      const uy = dy / mag;
+
+      const x2 = m.x;
+      const y2 = m.y;
+      const x1 = x2 - ux * m.len;
+      const y1 = y2 - uy * m.len;
+
+      // theme colors
+      const headColor =
+        theme === "dark"
+          ? "rgba(255, 240, 200, 1)" // warm head
+          : "rgba(255, 80, 80, 1)"; // vivid red head
+
+      const glowColor =
+        theme === "dark"
+          ? "rgba(255, 170, 70, 1)" // orange glow
+          : "rgba(210, 20, 20, 1)"; // deep red glow
+
+      // Tail gradient (transparent -> glow near head)
+      const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+      if (theme === "dark") {
+        grad.addColorStop(0, `rgba(255,200,120,0)`);
+        grad.addColorStop(0.45, `rgba(255,180,90,${0.12 * alpha})`);
+        grad.addColorStop(0.78, `rgba(255,190,110,${0.26 * alpha})`);
+        grad.addColorStop(1, `rgba(255,230,190,${0.40 * alpha})`);
+      } else {
+        grad.addColorStop(0, `rgba(190,0,0,0)`);
+        grad.addColorStop(0.45, `rgba(255,40,40,${0.12 * alpha})`);
+        grad.addColorStop(0.78, `rgba(255,55,55,${0.26 * alpha})`);
+        grad.addColorStop(1, `rgba(255,95,95,${0.42 * alpha})`);
+      }
+
+      // Draw tail (thin, long, smooth)
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = theme === "dark" ? 1.65 : 1.85;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      // Soft glow around tail near head (very subtle)
+      ctx.strokeStyle = theme === "dark" ? `rgba(255,170,70,${0.10 * alpha})` : `rgba(220,20,20,${0.10 * alpha})`;
+      ctx.lineWidth = theme === "dark" ? 4.5 : 5.2;
+      ctx.beginPath();
+      ctx.moveTo(lerp(x1, x2, 0.55), lerp(y1, y2, 0.55));
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      // Head glow blob
+      const r = m.head;
+      const hg = ctx.createRadialGradient(x2, y2, 0, x2, y2, r * 10);
+      hg.addColorStop(0, `${headColor.replace("1)", `${0.75 * alpha})`)}`);
+      hg.addColorStop(0.35, `${glowColor.replace("1)", `${0.28 * alpha})`)}`);
+      hg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = hg;
+      ctx.beginPath();
+      ctx.arc(x2, y2, r * 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bright head core
+      ctx.fillStyle = theme === "dark" ? `rgba(255,255,255,${0.50 * alpha})` : `rgba(255,220,220,${0.46 * alpha})`;
+      ctx.beginPath();
+      ctx.arc(x2, y2, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
     };
 
     const draw = (t) => {
       const { w, h } = sizeRef.current;
 
-      const prev = lastT.current || t;
-      lastT.current = t;
-      const dt = Math.min(40, t - prev) / 1000;
+      const now = t;
+      const dt = Math.min(40, now - lastT.current);
+      lastT.current = now;
 
       ctx.clearRect(0, 0, w, h);
 
-      // vignette
+      // background vignette
       const starRGB = theme === "light" ? "0,0,0" : "255,255,255";
       const g = ctx.createRadialGradient(w * 0.5, h * 0.5, 60, w * 0.5, h * 0.5, Math.max(w, h) * 0.95);
 
@@ -200,66 +301,35 @@ function Starfield({ density = 650, theme = "dark" }) {
         ctx.fill();
       }
 
-      // meteors (rare + lightweight)
-      const spawnChance = theme === "light" ? 0.010 : 0.008;
-      if (Math.random() < spawnChance && meteors.current.length < 3) spawnMeteor();
+      // Meteors (subtle + more frequent, but not annoying)
+      // Frequency target: ~ every 3–6s depending on screen size; keep max 2–3 active.
+      // Use an accumulator so it feels natural.
+      const { w: ww, h: hh } = sizeRef.current;
+      const area = ww * hh;
+      const basePerSec = area < 450_000 ? 0.22 : area < 900_000 ? 0.18 : 0.14; // mobile a bit more frequent
+      spawnAcc.current += (dt / 1000) * basePerSec;
 
-      // theme colors:
-      // dark = warm yellow/orange; light = deep/bright red flame
-      const coreA = theme === "dark" ? "rgba(255, 200, 90, 0.95)" : "rgba(235, 30, 40, 0.92)";
-      const glowA = theme === "dark" ? "rgba(255, 140, 40, 0.55)" : "rgba(255, 60, 60, 0.55)";
-      const tailA = theme === "dark" ? "rgba(255, 220, 120, 0.0)" : "rgba(255, 80, 80, 0.0)";
+      // Spawn with randomness (Poisson-ish)
+      while (spawnAcc.current > 1.0) {
+        spawnAcc.current -= 1.0;
+        if (meteors.current.length < 2) spawnMeteor();
+        else if (Math.random() < 0.35 && meteors.current.length < 3) spawnMeteor();
+      }
 
+      // Update + draw meteors
       const next = [];
       for (const m of meteors.current) {
-        m.age += dt;
-        if (m.age >= m.life) continue;
+        m.t += dt / 1000;
+        m.x += (m.vx * dt) / 1000;
+        m.y += (m.vy * dt) / 1000;
 
-        m.x += m.vx * dt;
-        m.y += m.vy * dt;
-
-        // fade-in/out envelope
-        const p = m.age / m.life;
-        const fade = p < 0.18 ? p / 0.18 : p > 0.78 ? (1 - p) / 0.22 : 1;
-        const alpha = clamp(fade, 0, 1);
-
-        const mag = Math.max(1, Math.hypot(m.vx, m.vy));
-        const ux = m.vx / mag;
-        const uy = m.vy / mag;
-
-        const x2 = m.x - ux * m.len;
-        const y2 = m.y - uy * m.len;
-
-        ctx.save();
-        ctx.globalCompositeOperation = "lighter";
-        ctx.lineCap = "round";
-
-        // glow stroke
-        ctx.beginPath();
-        ctx.strokeStyle = glowA;
-        ctx.globalAlpha = alpha * 0.55;
-        ctx.lineWidth = m.thick * 6.2;
-        ctx.moveTo(x2, y2);
-        ctx.lineTo(m.x, m.y);
-        ctx.stroke();
-
-        // core gradient
-        const lg = ctx.createLinearGradient(x2, y2, m.x, m.y);
-        lg.addColorStop(0, tailA);
-        lg.addColorStop(0.55, glowA);
-        lg.addColorStop(1, coreA);
-
-        ctx.beginPath();
-        ctx.strokeStyle = lg;
-        ctx.globalAlpha = alpha;
-        ctx.lineWidth = m.thick * 2.0;
-        ctx.moveTo(x2, y2);
-        ctx.lineTo(m.x, m.y);
-        ctx.stroke();
-
-        ctx.restore();
-
-        if (m.x < w + 280 && m.y < h + 280) next.push(m);
+        // keep if alive and near screen
+        const alive = m.t < m.life;
+        const near = m.x > -400 && m.x < w + 400 && m.y > -400 && m.y < h + 400;
+        if (alive && near) {
+          drawMeteor(m);
+          next.push(m);
+        }
       }
       meteors.current = next;
 
@@ -269,6 +339,7 @@ function Starfield({ density = 650, theme = "dark" }) {
     resize();
     window.addEventListener("resize", resize);
     raf.current = requestAnimationFrame(draw);
+
     return () => {
       window.removeEventListener("resize", resize);
       cancelAnimationFrame(raf.current);
@@ -335,35 +406,42 @@ function premiumSphereLayout(items, { isMobile }) {
   const n = items.length;
   if (!n) return new Map();
 
-  // ✅ MOBILE FIX: Fibonacci sphere (prevents vertical-line stacking)
+  // ✅ FIX for mobile “vertical line” artifact:
+  // Use a golden-angle (Fibonacci) sphere distribution on mobile.
+  // Desktop layout remains exactly as before.
   if (isMobile) {
     const out = new Map();
-    const ga = Math.PI * (3 - Math.sqrt(5)); // golden angle
-
+    const golden = Math.PI * (3 - Math.sqrt(5)); // ~2.399963
     for (let i = 0; i < n; i++) {
       const it = items[i];
 
-      const y = 1 - 2 * (i + 0.5) / n; // [-1..1]
-      const r = Math.sqrt(Math.max(0, 1 - y * y));
-      const phi = i * ga;
+      // y in [-1,1]
+      const t = (i + 0.5) / n;
+      const y = 1 - 2 * t;
 
-      const x = Math.cos(phi) * r;
-      const z = Math.sin(phi) * r;
+      // lat in radians
+      let lat = Math.asin(clamp(y, -1, 1));
 
-      let lon = Math.atan2(x, z);
-      let lat = Math.asin(y);
+      // lon distributes around
+      let lon = (i * golden) % (Math.PI * 2);
 
-      // subtle jitter (keeps it organic, avoids perfect seams)
+      // small deterministic jitter to avoid perfect "bands"
       const seed = hashCode(it.id) % 1000;
-      lon += (seed / 1000 - 0.5) * 0.030;
-      lat += ((hashCode(it.id + "t") % 1000) / 1000 - 0.5) * 0.020;
+      const jl = (seed / 1000 - 0.5) * 0.060;
+      const jt = ((hashCode(it.id + "t") % 1000) / 1000 - 0.5) * 0.030;
+
+      lon += jl;
+      lat += jt;
+
+      // clamp slightly away from exact poles
+      lat = clamp(lat, -1.50, 1.50);
 
       out.set(it.id, { lon, lat });
     }
     return out;
   }
 
-  // ✅ DESKTOP: keep your existing ring layout untouched
+  // Desktop (unchanged)
   const bands = 8;
   const latMin = -1.30;
   const latMax = 1.30;
@@ -747,7 +825,6 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
                     transition={{ type: "spring", stiffness: 260, damping: 18 }}
                   >
                     <div className={cn("relative h-full w-full overflow-hidden rounded-2xl border", cardBorder)} style={{ boxShadow: glow }}>
-                      {/* ✅ Color surface that WILL render everywhere */}
                       <div
                         className="absolute inset-0"
                         style={{
@@ -767,7 +844,6 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
                         }}
                       />
 
-                      {/* Accent rim */}
                       <div
                         className="absolute inset-0"
                         style={{
@@ -776,10 +852,8 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
                         }}
                       />
 
-                      {/* Glass blur tuned DOWN so color stays visible */}
                       <div className="absolute inset-0 backdrop-blur-[10px]" style={{ opacity: theme === "dark" ? 0.28 : 0.34 }} />
 
-                      {/* content */}
                       {isMobile ? (
                         <div className="relative flex h-full flex-col items-center justify-center gap-2 p-2">
                           <div
@@ -883,10 +957,9 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, onHo
               </span>
             </button>
 
-            {/* ✅ Browse sparkle: exactly 5 flashes until first Browse click */}
             <motion.button
               onClick={onBrowse}
-              className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold", showBrowseHint ? "hint-glow hint-sparkle-5" : "")}
+              className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold", showBrowseHint ? "hint-glow hint-sparkle" : "")}
               aria-label="Browse"
               title="Browse"
               animate={showBrowseHint ? { y: [0, -2, 0] } : { y: 0 }}
@@ -1104,9 +1177,11 @@ export default function App() {
   const [nameAnimKey, setNameAnimKey] = useState(1);
   const nameText = useBinaryReveal("Srinivasarao Galla", nameAnimKey, { durationMs: 1250, settleMs: 160 });
 
+  // ✅ Browse hint state
   const [hasUsedBrowse, setHasUsedBrowse] = useState(() => localStorage.getItem("usedBrowse") === "1");
   const showBrowseHint = !hasUsedBrowse;
 
+  // ✅ Sparkle flashes exactly 5 times (CSS handles 5 iterations). Once user clicks Browse, it never shows again.
   const openBrowse = () => {
     setBrowseOpen(true);
     if (!hasUsedBrowse) {
@@ -1550,6 +1625,7 @@ export default function App() {
   };
 
   const AboutContent = () => {
+    // unchanged from your “nearly perfect” version
     const card = theme === "light" ? "border-black/12 bg-white/88" : "border-white/12 bg-white/[0.03]";
     const section = theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]";
     const label = theme === "light" ? "text-black/55" : "text-white/55";
@@ -1573,7 +1649,8 @@ export default function App() {
         <div className={cn("rounded-3xl border p-5", section)}>
           <div className={cn("text-xs font-semibold tracking-widest", label)}>HIRE-READY DEVOPS</div>
           <div className={cn("mt-3 text-[15px] leading-6", subtle)}>
-            I help teams ship faster <span className={cn("font-semibold", text)}>without breaking production</span>. I build the delivery backbone — CI/CD, Kubernetes, IaC, and monitoring — so releases become predictable, incident response becomes calm, and operations becomes scalable.
+            I help teams ship faster <span className={cn("font-semibold", text)}>without breaking production</span>.
+            I build the delivery backbone — CI/CD, Kubernetes, IaC, and monitoring — so releases become predictable, incident response becomes calm, and operations becomes scalable.
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -1722,42 +1799,10 @@ export default function App() {
           </div>
 
           {[
-            {
-              href: "mailto:srinu.galla@gmail.com",
-              left: (
-                <>
-                  <Mail className="h-4 w-4" /> srinu.galla@gmail.com
-                </>
-              ),
-              ext: false,
-            },
-            {
-              href: "https://github.com/srinugalla/srinugalla",
-              left: (
-                <>
-                  <Github className="h-4 w-4" /> GitHub
-                </>
-              ),
-              ext: true,
-            },
-            {
-              href: "https://www.linkedin.com/in/sgalla/",
-              left: (
-                <>
-                  <Linkedin className="h-4 w-4" /> LinkedIn
-                </>
-              ),
-              ext: true,
-            },
-            {
-              href: "tel:+353866005678",
-              left: (
-                <>
-                  <Phone className="h-4 w-4" /> +353 86 600 5678
-                </>
-              ),
-              ext: false,
-            },
+            { href: "mailto:srinu.galla@gmail.com", left: <><Mail className="h-4 w-4" /> srinu.galla@gmail.com</>, ext: false },
+            { href: "https://github.com/srinugalla/srinugalla", left: <><Github className="h-4 w-4" /> GitHub</>, ext: true },
+            { href: "https://www.linkedin.com/in/sgalla/", left: <><Linkedin className="h-4 w-4" /> LinkedIn</>, ext: true },
+            { href: "tel:+353866005678", left: <><Phone className="h-4 w-4" /> +353 86 600 5678</>, ext: false },
           ].map((row, i) => (
             <a
               key={i}
@@ -1790,7 +1835,7 @@ export default function App() {
             onClick={openBrowse}
             className={cn(
               "hint-glow-soft rounded-full border backdrop-blur transition relative",
-              showBrowseHint ? "hint-sparkle-5-soft" : "",
+              showBrowseHint ? "hint-sparkle-soft" : "",
               theme === "light" ? "border-black/10 bg-white/80 text-black/65 hover:bg-white" : "border-white/12 bg-black/35 text-white/75 hover:bg-black/45",
               isMobile ? "px-3 py-1.5 text-[10px] font-semibold tracking-wide" : "px-4 py-2 text-[11px] font-semibold tracking-widest"
             )}
