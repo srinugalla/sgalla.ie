@@ -8,6 +8,17 @@ body,
   height: 100%;
 }
 
+/* ✅ hard stop on iOS rubber-band / page drift */
+html {
+  overflow: hidden;
+  height: 100%;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
 /* ✅ stop mobile page from “moving” while dragging globe */
 html,
 body {
@@ -48,6 +59,14 @@ canvas {
   -webkit-overflow-scrolling: touch;
 }
 
+/* ✅ modal GPU hint (App.jsx uses modal-panel) */
+.modal-panel {
+  will-change: transform, opacity, filter;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 /* subtle premium click animation */
 button,
 a {
@@ -58,6 +77,11 @@ a {
 button:active,
 a:active {
   transform: scale(0.98);
+}
+
+/* ✅ avoid fighting globe card 3D transforms (removes iOS micro-jitter) */
+.globe-card:active {
+  transform: none !important;
 }
 
 button:focus-visible,
@@ -130,6 +154,36 @@ html[data-theme="light"] .hint-sparkle-5-soft::after {
     radial-gradient(circle at 18% 40%, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 40%),
     linear-gradient(110deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.22) 18%, rgba(0, 0, 0, 0) 36%);
   mix-blend-mode: multiply;
+}
+
+/* ✅ subtle twinkle for the Sparkles icon in Browse button */
+@keyframes browseTwinkle {
+  0%,
+  70%,
+  100% {
+    opacity: 0.55;
+    transform: translateZ(0) scale(1);
+    filter: blur(0px);
+  }
+  78% {
+    opacity: 0.95;
+    transform: translateZ(0) scale(1.07);
+    filter: blur(0.2px);
+  }
+  86% {
+    opacity: 0.65;
+    transform: translateZ(0) scale(1.02);
+  }
+}
+
+.browse-star {
+  opacity: 0.6;
+  animation: browseTwinkle 3.6s ease-in-out infinite;
+  will-change: transform, opacity, filter;
+}
+
+html[data-theme="light"] .browse-star {
+  opacity: 0.45;
 }
 
 /* --------------------- legacy globe slice styles (kept minimal) --------------------- */
