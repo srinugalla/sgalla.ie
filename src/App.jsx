@@ -93,7 +93,6 @@ function useBinaryReveal(finalText, key, { durationMs = 1200, settleMs = 200 } =
 }
 
 /* ----------------------------- Color helpers ----------------------------- */
-// Avoid 8-digit hex alpha entirely (some devices render it inconsistently).
 function hexToRgb(hex) {
   const h = String(hex || "").replace("#", "").trim();
   if (h.length !== 6) return { r: 255, g: 255, b: 255 };
@@ -142,80 +141,51 @@ function Starfield({ density = 650, theme = "dark" }) {
         ph: Math.random() * Math.PI * 2,
       }));
 
-      // keep existing meteors valid after resize
       meteors.current = meteors.current.filter((m) => m.x > -200 && m.x < w + 200 && m.y > -200 && m.y < h + 200);
     };
 
     const spawnMeteor = () => {
       const { w, h } = sizeRef.current;
 
-      // subtle, background, cinematic diagonal streak like reference
-      // Spawn slightly off-screen so tail "enters"
       const fromLeft = Math.random() < 0.55;
       const startX = fromLeft ? -60 : w + 60;
       const startY = h * (0.10 + Math.random() * 0.55);
 
-      // Angle: mostly left->right or right->left with slight downward drift
-      const base = fromLeft ? Math.PI * 0.06 : Math.PI - Math.PI * 0.06; // ~10deg
-      const jitter = (Math.random() - 0.5) * (Math.PI * 0.10); // +/- 9deg
-      const ang = base + jitter + (Math.random() * 0.10); // tiny downward component
+      const base = fromLeft ? Math.PI * 0.06 : Math.PI - Math.PI * 0.06;
+      const jitter = (Math.random() - 0.5) * (Math.PI * 0.10);
+      const ang = base + jitter + Math.random() * 0.10;
 
-      const speed = 820 + Math.random() * 520; // px/sec
+      const speed = 820 + Math.random() * 520;
       const vx = Math.cos(ang) * speed;
       const vy = Math.sin(ang) * speed;
 
-      const life = 0.95 + Math.random() * 0.60; // seconds
-      const len = 260 + Math.random() * 260; // tail length px
-      const head = 2.4 + Math.random() * 1.6; // head radius
+      const life = 0.95 + Math.random() * 0.60;
+      const len = 260 + Math.random() * 260;
+      const head = 2.4 + Math.random() * 1.6;
 
-      meteors.current.push({
-        x: startX,
-        y: startY,
-        vx,
-        vy,
-        t: 0,
-        life,
-        len,
-        head,
-      });
-
-      // hard cap for performance
+      meteors.current.push({ x: startX, y: startY, vx, vy, t: 0, life, len, head });
       if (meteors.current.length > 3) meteors.current.shift();
     };
 
     const drawMeteor = (m) => {
       const p = clamp(m.t / m.life, 0, 1);
-
-      // fade-in then fade-out (subtle)
       const fadeIn = clamp(p / 0.10, 0, 1);
       const fadeOut = clamp((1 - p) / 0.22, 0, 1);
       const alpha = Math.min(fadeIn, fadeOut);
-
       if (alpha <= 0.001) return;
 
-      const dx = m.vx;
-      const dy = m.vy;
-      const mag = Math.hypot(dx, dy) || 1;
-      const ux = dx / mag;
-      const uy = dy / mag;
+      const mag = Math.hypot(m.vx, m.vy) || 1;
+      const ux = m.vx / mag;
+      const uy = m.vy / mag;
 
       const x2 = m.x;
       const y2 = m.y;
       const x1 = x2 - ux * m.len;
       const y1 = y2 - uy * m.len;
 
-      // theme colors
-      const headColor =
-        theme === "dark"
-          ? "rgba(255, 240, 200, 1)" // warm head
-          : "rgba(255, 80, 80, 1)"; // vivid red head
+      const headColor = theme === "dark" ? "rgba(255, 240, 200, 1)" : "rgba(255, 80, 80, 1)";
+      const glowColor = theme === "dark" ? "rgba(255, 170, 70, 1)" : "rgba(210, 20, 20, 1)";
 
-      const glowColor =
-        theme === "dark"
-          ? "rgba(255, 170, 70, 1)" // orange glow
-          : "rgba(210, 20, 20, 1)"; // deep red glow
-
-      // Tail gradient (transparent -> glow near head)
       const grad = ctx.createLinearGradient(x1, y1, x2, y2);
       if (theme === "dark") {
         grad.addColorStop(0, `rgba(255,200,120,0)`);
@@ -229,11 +199,11 @@ function Starfield({ density = 650, theme = "dark" }) {
         grad.addColorStop(1, `rgba(255,95,95,${0.42 * alpha})`);
       }
 
-      // Draw tail (thin, long, smooth)
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
+
       ctx.strokeStyle = grad;
       ctx.lineWidth = theme === "dark" ? 1.65 : 1.85;
       ctx.beginPath();
@@ -241,7 +211,6 @@ function Starfield({ density = 650, theme = "dark" }) {
       ctx.lineTo(x2, y2);
       ctx.stroke();
 
-      // Soft glow around tail near head (very subtle)
       ctx.strokeStyle = theme === "dark" ? `rgba(255,170,70,${0.10 * alpha})` : `rgba(220,20,20,${0.10 * alpha})`;
       ctx.lineWidth = theme === "dark" ? 4.5 : 5.2;
       ctx.beginPath();
@@ -249,7 +218,6 @@ function Starfield({ density = 650, theme = "dark" }) {
       ctx.lineTo(x2, y2);
       ctx.stroke();
 
-      // Head glow blob
       const r = m.head;
       const hg = ctx.createRadialGradient(x2, y2, 0, x2, y2, r * 10);
       hg.addColorStop(0, `${headColor.replace("1)", `${0.75 * alpha})`)}`);
@@ -260,7 +228,6 @@ function Starfield({ density = 650, theme = "dark" }) {
       ctx.arc(x2, y2, r * 10, 0, Math.PI * 2);
       ctx.fill();
 
-      // Bright head core
       ctx.fillStyle = theme === "dark" ? `rgba(255,255,255,${0.50 * alpha})` : `rgba(255,220,220,${0.46 * alpha})`;
       ctx.beginPath();
       ctx.arc(x2, y2, r, 0, Math.PI * 2);
@@ -271,17 +238,13 @@ function Starfield({ density = 650, theme = "dark" }) {
 
     const draw = (t) => {
       const { w, h } = sizeRef.current;
-
-      const now = t;
-      const dt = Math.min(40, now - lastT.current);
-      lastT.current = now;
+      const dt = Math.min(40, t - lastT.current);
+      lastT.current = t;
 
       ctx.clearRect(0, 0, w, h);
 
-      // background vignette
       const starRGB = theme === "light" ? "0,0,0" : "255,255,255";
       const g = ctx.createRadialGradient(w * 0.5, h * 0.5, 60, w * 0.5, h * 0.5, Math.max(w, h) * 0.95);
-
       if (theme === "light") {
         g.addColorStop(0, "rgba(0,0,0,0.02)");
         g.addColorStop(1, "rgba(255,255,255,0)");
@@ -292,7 +255,6 @@ function Starfield({ density = 650, theme = "dark" }) {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
 
-      // stars
       for (const s of stars.current) {
         const tw = 0.6 + 0.4 * Math.sin((t / 1000) * s.tw + s.ph);
         ctx.beginPath();
@@ -301,29 +263,22 @@ function Starfield({ density = 650, theme = "dark" }) {
         ctx.fill();
       }
 
-      // Meteors (subtle + more frequent, but not annoying)
-      // Frequency target: ~ every 3–6s depending on screen size; keep max 2–3 active.
-      // Use an accumulator so it feels natural.
-      const { w: ww, h: hh } = sizeRef.current;
-      const area = ww * hh;
-      const basePerSec = area < 450_000 ? 0.22 : area < 900_000 ? 0.18 : 0.14; // mobile a bit more frequent
+      // Slightly higher frequency, still subtle. Mobile gets a touch more.
+      const area = w * h;
+      const basePerSec = area < 450_000 ? 0.26 : area < 900_000 ? 0.20 : 0.16;
       spawnAcc.current += (dt / 1000) * basePerSec;
 
-      // Spawn with randomness (Poisson-ish)
       while (spawnAcc.current > 1.0) {
         spawnAcc.current -= 1.0;
         if (meteors.current.length < 2) spawnMeteor();
         else if (Math.random() < 0.35 && meteors.current.length < 3) spawnMeteor();
       }
 
-      // Update + draw meteors
       const next = [];
       for (const m of meteors.current) {
         m.t += dt / 1000;
         m.x += (m.vx * dt) / 1000;
         m.y += (m.vy * dt) / 1000;
-
-        // keep if alive and near screen
         const alive = m.t < m.life;
         const near = m.x > -400 && m.x < w + 400 && m.y > -400 && m.y < h + 400;
         if (alive && near) {
@@ -390,7 +345,9 @@ function Modal({ open, onClose, title, children, theme = "dark", origin }) {
                 </button>
               </div>
 
-              <div className={cn("max-h-[78svh] overflow-y-auto p-5 text-sm leading-6", theme === "light" ? "text-black/80" : "text-white/75")}>
+              <div
+                className={cn("max-h-[78svh] overflow-y-auto p-5 text-sm leading-6 modal-scroll", theme === "light" ? "text-black/80" : "text-white/75")}
+              >
                 {children}
               </div>
             </motion.div>
@@ -406,34 +363,23 @@ function premiumSphereLayout(items, { isMobile }) {
   const n = items.length;
   if (!n) return new Map();
 
-  // ✅ FIX for mobile “vertical line” artifact:
-  // Use a golden-angle (Fibonacci) sphere distribution on mobile.
-  // Desktop layout remains exactly as before.
+  // Mobile: Fibonacci sphere (prevents “vertical line” artifacts)
   if (isMobile) {
     const out = new Map();
-    const golden = Math.PI * (3 - Math.sqrt(5)); // ~2.399963
+    const golden = Math.PI * (3 - Math.sqrt(5));
     for (let i = 0; i < n; i++) {
       const it = items[i];
-
-      // y in [-1,1]
       const t = (i + 0.5) / n;
       const y = 1 - 2 * t;
-
-      // lat in radians
       let lat = Math.asin(clamp(y, -1, 1));
-
-      // lon distributes around
       let lon = (i * golden) % (Math.PI * 2);
 
-      // small deterministic jitter to avoid perfect "bands"
       const seed = hashCode(it.id) % 1000;
       const jl = (seed / 1000 - 0.5) * 0.060;
       const jt = ((hashCode(it.id + "t") % 1000) / 1000 - 0.5) * 0.030;
 
       lon += jl;
       lat += jt;
-
-      // clamp slightly away from exact poles
       lat = clamp(lat, -1.50, 1.50);
 
       out.set(it.id, { lon, lat });
@@ -441,7 +387,7 @@ function premiumSphereLayout(items, { isMobile }) {
     return out;
   }
 
-  // Desktop (unchanged)
+  // Desktop: unchanged
   const bands = 8;
   const latMin = -1.30;
   const latMax = 1.30;
@@ -510,11 +456,9 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
 
   const BASE_X = -7;
   const rot = useRef({ x: BASE_X, y: 18 });
-
-  // Mobile: calmer idle rotation
   const vel = useRef({ y: isMobile ? 0.070 : 0.095 });
 
-  const drag = useRef({ active: false, lx: 0, pointerType: "mouse" });
+  const drag = useRef({ active: false, lx: 0, pointerType: "mouse", pid: null });
   const lastInteract = useRef(0);
 
   const [R, setR] = useState(420);
@@ -524,7 +468,8 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
   const cardNodesRef = useRef([]);
   const frameRef = useRef(0);
 
-  const tapRef = useRef({ downX: 0, downY: 0, moved: false, t: 0 });
+  // Tap handling (simpler + less glitch)
+  const tapRef = useRef({ downX: 0, downY: 0, moved: false, t: 0, pid: null });
 
   useEffect(() => {
     const onResize = () => {
@@ -537,18 +482,15 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
       const usableH = Math.max(220, h - safeTop - safeBottom);
       const usable = Math.max(220, Math.min(w, usableH));
 
-      // ✅ Mobile globe slightly smaller (desktop untouched)
       const maxSize = isMobile ? 500 : 920;
       const minSize = isMobile ? 240 : 330;
       const ws = clamp(Math.floor(usable * (isMobile ? 0.78 : 0.86)), minSize, maxSize);
       setWrapSize(ws);
 
-      // ✅ Mobile tighter radius = more visible cards
       const radiusFactor = isMobile ? 0.50 : 0.60;
       const r = clamp(Math.floor(ws * radiusFactor), isMobile ? 145 : 230, isMobile ? 295 : 600);
       setR(r);
 
-      // ✅ Mobile cards slightly smaller for density (still readable)
       const cs = isMobile ? clamp(usable / 1280, 0.52, 0.76) : clamp(usable / 1650, 0.66, 0.92);
       setCardScale(cs);
     };
@@ -562,7 +504,6 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
     };
   }, [isMobile]);
 
-  // Desktop untouched
   const cardW = isMobile ? clamp(66 * cardScale, 52, 86) : clamp(132 * cardScale, 104, 168);
   const cardH = isMobile ? cardW : clamp(98 * cardScale, 84, 122);
 
@@ -574,10 +515,28 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
     cardNodesRef.current = Array.from(el.querySelectorAll("[data-card='1']"));
   }, [items.length]);
 
+  // ✅ Prevent page scroll / rubber band only while dragging globe
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+
+    // Helps iOS: keep gestures within element
+    el.style.touchAction = "none";
+
+    const onTouchMove = (e) => {
+      if (drag.current.active) e.preventDefault();
+    };
+
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onTouchMove);
+  }, []);
+
+  // ✅ Single RAF loop: rotate + depth update (less work = smoother)
   useEffect(() => {
     let raf = 0;
+    let last = performance.now();
 
-    const updateDepth = () => {
+    const updateDepth = (themeNow) => {
       const nodes = cardNodesRef.current;
       if (!nodes || nodes.length === 0) return;
 
@@ -610,26 +569,13 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
         node.style.zIndex = String(100 + Math.round(depth01 * 900));
 
         if (doFull) {
-          const farDim = theme === "light" ? 0.93 : 0.90;
+          const farDim = themeNow === "light" ? 0.93 : 0.90;
           node.style.opacity = String(lerp(farDim, 1, depth01));
           const s = lerp(0.992, 1.035, depth01);
           node.style.setProperty("--depthScale", String(s));
         }
       }
     };
-
-    const loop = () => {
-      updateDepth();
-      raf = requestAnimationFrame(loop);
-    };
-
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [theme]);
-
-  useEffect(() => {
-    let raf = 0;
-    let last = performance.now();
 
     const tick = (now) => {
       const dt = Math.min(34, now - last);
@@ -641,7 +587,7 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
         const target = isMobile ? 0.070 : 0.095;
         vel.current.y = lerp(vel.current.y, target, isMobile ? 0.030 : 0.018);
       } else {
-        vel.current.y = lerp(vel.current.y, 0.0, isMobile ? 0.075 : 0.060);
+        vel.current.y = lerp(vel.current.y, 0.0, isMobile ? 0.085 : 0.065);
       }
 
       rot.current.x = BASE_X;
@@ -649,46 +595,63 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
 
       if (innerRef.current) innerRef.current.style.transform = `rotateX(${rot.current.x}deg) rotateY(${rot.current.y}deg)`;
 
+      updateDepth(theme);
+
       raf = requestAnimationFrame(tick);
     };
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [isMobile]);
+  }, [isMobile, theme]);
 
+  // Pointer-based drag (with preventDefault for iOS)
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
 
     const onDown = (e) => {
+      // Don’t start globe-drag when the user pressed on a card (tap to open).
       if (e.target?.closest?.("button[data-card='1']")) return;
+
+      e.preventDefault?.();
+
       drag.current.active = true;
       drag.current.pointerType = e.pointerType || "mouse";
+      drag.current.pid = e.pointerId;
       lastInteract.current = performance.now();
       drag.current.lx = e.clientX;
-      el.setPointerCapture?.(e.pointerId);
+
+      try {
+        el.setPointerCapture?.(e.pointerId);
+      } catch {}
     };
 
     const onMove = (e) => {
       if (!drag.current.active) return;
+      if (drag.current.pid != null && e.pointerId !== drag.current.pid) return;
+
+      e.preventDefault?.();
+
       lastInteract.current = performance.now();
       const dx = e.clientX - drag.current.lx;
       drag.current.lx = e.clientX;
 
       const isTouch = drag.current.pointerType === "touch";
-      rot.current.y += dx * (isTouch ? 0.25 : 0.16);
-      vel.current.y = dx * (isTouch ? 0.090 : 0.065);
+      rot.current.y += dx * (isTouch ? 0.22 : 0.16);
+      vel.current.y = dx * (isTouch ? 0.080 : 0.060);
     };
 
-    const onUp = () => {
+    const onUp = (e) => {
+      if (drag.current.pid != null && e.pointerId !== drag.current.pid) return;
       drag.current.active = false;
+      drag.current.pid = null;
       lastInteract.current = performance.now();
     };
 
-    el.addEventListener("pointerdown", onDown);
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    el.addEventListener("pointerdown", onDown, { passive: false });
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp, { passive: true });
+    window.addEventListener("pointercancel", onUp, { passive: true });
 
     return () => {
       el.removeEventListener("pointerdown", onDown);
@@ -698,6 +661,7 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
     };
   }, []);
 
+  // Wheel unchanged
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -764,7 +728,6 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
 
               const pal = it.palette ?? pickPalette(it.company || it.title || it.id);
 
-              // ✅ PREMIUM COLOR (RGBA)
               const aHot = theme === "dark" ? rgba(pal.a, 0.62) : rgba(pal.a, 0.48);
               const bHot = theme === "dark" ? rgba(pal.b, 0.54) : rgba(pal.b, 0.40);
               const rimA = theme === "dark" ? rgba(pal.a, 0.20) : rgba(pal.a, 0.18);
@@ -781,7 +744,7 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
 
               const cardBorder = theme === "light" ? "border-black/15" : "border-white/14";
               const primary = it.type === "skill" ? it.title : it.company || it.title;
-              const secondary = it.type === "skill" ? (it.company || "") : (it.title || "");
+              const secondary = it.type === "skill" ? it.company || "" : it.title || "";
               const badge = (it.logoText || initials(primary)).slice(0, 3).toUpperCase();
 
               return (
@@ -801,27 +764,46 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
                   }}
                   onPointerDown={(e) => {
                     e.stopPropagation();
+                    e.preventDefault?.(); // avoids Safari scroll/selection quirks
                     tapRef.current.downX = e.clientX;
                     tapRef.current.downY = e.clientY;
                     tapRef.current.moved = false;
                     tapRef.current.t = performance.now();
+                    tapRef.current.pid = e.pointerId;
+
+                    try {
+                      e.currentTarget.setPointerCapture?.(e.pointerId);
+                    } catch {}
                   }}
                   onPointerMove={(e) => {
+                    if (tapRef.current.pid != null && e.pointerId !== tapRef.current.pid) return;
                     const dx = Math.abs(e.clientX - tapRef.current.downX);
                     const dy = Math.abs(e.clientY - tapRef.current.downY);
-                    if (dx > 7 || dy > 7) tapRef.current.moved = true;
+                    if (dx > 8 || dy > 8) tapRef.current.moved = true;
                   }}
                   onPointerUp={(e) => {
+                    if (tapRef.current.pid != null && e.pointerId !== tapRef.current.pid) return;
                     e.stopPropagation();
+                    e.preventDefault?.();
                     const dt = performance.now() - tapRef.current.t;
-                    if (!tapRef.current.moved && dt < 900) onSelect(it, { x: e.clientX, y: e.clientY });
+
+                    // Simple + reliable: quick tap opens, otherwise ignore.
+                    if (!tapRef.current.moved && dt < 700) {
+                      onSelect(it, { x: e.clientX, y: e.clientY });
+                    }
+
+                    tapRef.current.pid = null;
+                  }}
+                  onPointerCancel={() => {
+                    tapRef.current.pid = null;
                   }}
                 >
                   <motion.div
                     className="relative h-full w-full"
                     style={{ transform: "scale(var(--depthScale, 1))", transition: "transform 120ms ease" }}
                     whileHover={!isMobile ? { scale: 1.06, y: -2 } : undefined}
-                    whileTap={{ scale: 0.985 }}
+                    // ✅ reduce “glitch” feeling on mobile by removing tap scale animation there
+                    whileTap={!isMobile ? { scale: 0.985 } : undefined}
                     transition={{ type: "spring", stiffness: 260, damping: 18 }}
                   >
                     <div className={cn("relative h-full w-full overflow-hidden rounded-2xl border", cardBorder)} style={{ boxShadow: glow }}>
@@ -985,6 +967,7 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, onHo
 }
 
 /* ------------------------------- Browse View ------------------------------ */
+/* (unchanged from your version) */
 function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
   const pillBase = "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition";
   const active = theme === "light" ? "border-black/10 bg-black text-white" : "border-white/15 bg-white text-black";
@@ -1103,6 +1086,7 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
 }
 
 /* --------------------------- Popup resolver -------------------------- */
+/* (unchanged from your version) */
 function resolvePopupData(sel, data) {
   if (!sel) return null;
   const keyId = sel.baseId || sel.id;
@@ -1177,11 +1161,9 @@ export default function App() {
   const [nameAnimKey, setNameAnimKey] = useState(1);
   const nameText = useBinaryReveal("Srinivasarao Galla", nameAnimKey, { durationMs: 1250, settleMs: 160 });
 
-  // ✅ Browse hint state
   const [hasUsedBrowse, setHasUsedBrowse] = useState(() => localStorage.getItem("usedBrowse") === "1");
   const showBrowseHint = !hasUsedBrowse;
 
-  // ✅ Sparkle flashes exactly 5 times (CSS handles 5 iterations). Once user clicks Browse, it never shows again.
   const openBrowse = () => {
     setBrowseOpen(true);
     if (!hasUsedBrowse) {
@@ -1192,160 +1174,24 @@ export default function App() {
 
   const data = useMemo(() => {
     const skills = {
-      aws: {
-        id: "aws",
-        title: "AWS",
-        subtitle: "EC2 • S3 • IAM • VPC",
-        desc: "Secure, cost-aware cloud foundations with clear ownership and guardrails.",
-        bullets: ["IAM least privilege", "Networking/VPC", "Compute + storage patterns", "Operational hygiene"],
-        examples: ["Set up secure VPC + IAM boundaries", "Hardened EC2 patterns and access", "S3 policies + lifecycle + cost controls"],
-      },
-      jenkins: {
-        id: "jenkins",
-        title: "Jenkins",
-        subtitle: "CI/CD Pipelines",
-        desc: "Build → test → deploy automation so releases become boring (in the best way).",
-        bullets: ["Pipelines", "Automation", "Release confidence"],
-        examples: ["Branch + PR workflows", "Artifacts + versioning", "Rollback-friendly deployments"],
-      },
-      docker: {
-        id: "docker",
-        title: "Docker",
-        subtitle: "Containers",
-        desc: "Environment parity across dev/stage/prod with fast iteration and predictable builds.",
-        bullets: ["Images", "Best practices", "Parity"],
-        examples: ["Slim images, caching, multi-stage builds", "Dev/prod parity and reproducible builds"],
-      },
-      kubernetes: {
-        id: "kubernetes",
-        title: "Kubernetes",
-        subtitle: "Deploy • Scale",
-        desc: "Scalable deployments with safe rollouts, health checks, and rollback discipline.",
-        bullets: ["Deployments", "Services", "Helm"],
-        examples: ["Safe rollouts, probes, HPA", "Config/secrets hygiene", "Cluster operations mindset"],
-      },
-      terraform: {
-        id: "terraform",
-        title: "Terraform",
-        subtitle: "Infrastructure as Code",
-        desc: "Repeatable, auditable provisioning with modules and state control.",
-        bullets: ["Modules", "State", "Reusable infra"],
-        examples: ["Reusable modules", "State strategy + drift awareness", "Infra changes through PRs"],
-      },
-      prometheus: {
-        id: "prometheus",
-        title: "Prometheus",
-        subtitle: "Metrics + Alerting",
-        desc: "Signals and alerting tuned to reduce noise and improve response.",
-        bullets: ["Metrics", "Alerting", "SLIs/SLOs"],
-        examples: ["Actionable alert rules", "SLO-minded dashboards", "Reduce alert fatigue"],
-      },
-      grafana: {
-        id: "grafana",
-        title: "Grafana",
-        subtitle: "Dashboards",
-        desc: "Dashboards teams actually use during incidents and reviews.",
-        bullets: ["Dashboards", "Panels", "Ops visibility"],
-        examples: ["Golden signals + drilldowns", "Incident-ready boards", "Runbook links"],
-      },
-      git: {
-        id: "git",
-        title: "Git + GitHub",
-        subtitle: "Collaboration",
-        desc: "PR-based workflows with reviews, versioning, and clean releases.",
-        bullets: ["PRs", "Reviews", "Branching"],
-        examples: ["Clean branching + reviews", "Release tagging + traceability"],
-      },
-      collaboration: {
-        id: "collaboration",
-        title: "Cross-team Collaboration",
-        subtitle: "Dev • Ops • Product",
-        desc: "Align infra decisions with business goals and delivery timelines.",
-        bullets: ["Stakeholders", "Delivery", "Execution"],
-        examples: ["Translate requirements into reliable delivery", "Communicate risk + tradeoffs clearly"],
-      },
-      tooling: {
-        id: "tooling",
-        title: "Tooling",
-        subtitle: "Linux • Bash • APIs",
-        desc: "Practical systems fundamentals + automation to remove repetition.",
-        bullets: ["Linux", "Bash", "REST APIs"],
-        examples: ["Automate repetitive ops tasks", "Improve day-2 operations"],
-      },
-      pm: {
-        id: "pm",
-        title: "Project Coordination",
-        subtitle: "Monday.com • Trello",
-        desc: "Strong planning and communication for shipping consistently.",
-        bullets: ["Planning", "Timelines", "Stakeholders"],
-        examples: ["Clear milestones + ownership", "Delivery rhythm + status clarity"],
-      },
+      aws: { id: "aws", title: "AWS", subtitle: "EC2 • S3 • IAM • VPC", desc: "Secure, cost-aware cloud foundations with clear ownership and guardrails.", bullets: ["IAM least privilege", "Networking/VPC", "Compute + storage patterns", "Operational hygiene"], examples: ["Set up secure VPC + IAM boundaries", "Hardened EC2 patterns and access", "S3 policies + lifecycle + cost controls"] },
+      jenkins: { id: "jenkins", title: "Jenkins", subtitle: "CI/CD Pipelines", desc: "Build → test → deploy automation so releases become boring (in the best way).", bullets: ["Pipelines", "Automation", "Release confidence"], examples: ["Branch + PR workflows", "Artifacts + versioning", "Rollback-friendly deployments"] },
+      docker: { id: "docker", title: "Docker", subtitle: "Containers", desc: "Environment parity across dev/stage/prod with fast iteration and predictable builds.", bullets: ["Images", "Best practices", "Parity"], examples: ["Slim images, caching, multi-stage builds", "Dev/prod parity and reproducible builds"] },
+      kubernetes: { id: "kubernetes", title: "Kubernetes", subtitle: "Deploy • Scale", desc: "Scalable deployments with safe rollouts, health checks, and rollback discipline.", bullets: ["Deployments", "Services", "Helm"], examples: ["Safe rollouts, probes, HPA", "Config/secrets hygiene", "Cluster operations mindset"] },
+      terraform: { id: "terraform", title: "Terraform", subtitle: "Infrastructure as Code", desc: "Repeatable, auditable provisioning with modules and state control.", bullets: ["Modules", "State", "Reusable infra"], examples: ["Reusable modules", "State strategy + drift awareness", "Infra changes through PRs"] },
+      prometheus: { id: "prometheus", title: "Prometheus", subtitle: "Metrics + Alerting", desc: "Signals and alerting tuned to reduce noise and improve response.", bullets: ["Metrics", "Alerting", "SLIs/SLOs"], examples: ["Actionable alert rules", "SLO-minded dashboards", "Reduce alert fatigue"] },
+      grafana: { id: "grafana", title: "Grafana", subtitle: "Dashboards", desc: "Dashboards teams actually use during incidents and reviews.", bullets: ["Dashboards", "Panels", "Ops visibility"], examples: ["Golden signals + drilldowns", "Incident-ready boards", "Runbook links"] },
+      git: { id: "git", title: "Git + GitHub", subtitle: "Collaboration", desc: "PR-based workflows with reviews, versioning, and clean releases.", bullets: ["PRs", "Reviews", "Branching"], examples: ["Clean branching + reviews", "Release tagging + traceability"] },
+      collaboration: { id: "collaboration", title: "Cross-team Collaboration", subtitle: "Dev • Ops • Product", desc: "Align infra decisions with business goals and delivery timelines.", bullets: ["Stakeholders", "Delivery", "Execution"], examples: ["Translate requirements into reliable delivery", "Communicate risk + tradeoffs clearly"] },
+      tooling: { id: "tooling", title: "Tooling", subtitle: "Linux • Bash • APIs", desc: "Practical systems fundamentals + automation to remove repetition.", bullets: ["Linux", "Bash", "REST APIs"], examples: ["Automate repetitive ops tasks", "Improve day-2 operations"] },
+      pm: { id: "pm", title: "Project Coordination", subtitle: "Monday.com • Trello", desc: "Strong planning and communication for shipping consistently.", bullets: ["Planning", "Timelines", "Stakeholders"], examples: ["Clear milestones + ownership", "Delivery rhythm + status clarity"] },
     };
 
     const experiences = [
-      {
-        id: "exp-fullscale",
-        type: "experience",
-        title: "DevOps Engineer",
-        company: "FullScale.ie",
-        location: "Dublin, Ireland",
-        period: "Jun 2023 – Present",
-        meta: "AWS • Jenkins • Docker • Kubernetes • Terraform • Prometheus/Grafana",
-        responsibilities: [
-          "Built and maintained CI/CD pipelines (Jenkins) for automated build, test and deployments.",
-          "Containerised services with Docker and managed Kubernetes deployments for scalable delivery.",
-          "Implemented Infrastructure as Code using Terraform (repeatable provisioning, auditability).",
-          "Operationalised monitoring with Prometheus + Grafana (dashboards + actionable alerts).",
-          "Managed AWS infra (EC2, S3, IAM, VPC) with security-first practices.",
-          "Partnered with dev + product teams to reduce friction and ship reliably.",
-        ],
-        relatedSkillIds: ["aws", "jenkins", "docker", "kubernetes", "terraform", "prometheus", "grafana", "git", "collaboration"],
-        details: "Reliable deployments + scalable operations for a cloud marketplace.",
-      },
-      {
-        id: "exp-chillcart",
-        type: "experience",
-        title: "Project Co-Ordinator",
-        company: "Chillcart Ltd.",
-        location: "Dublin, Ireland",
-        period: "Jun 2018 – Jun 2023",
-        meta: "Delivery • Coordination",
-        responsibilities: [
-          "Coordinated daily project delivery across partners and internal teams.",
-          "Owned planning, scheduling, and risk tracking for feature releases.",
-          "Managed delivery operations with Monday.com, Trello and Google Workspace.",
-        ],
-        relatedSkillIds: ["pm", "collaboration"],
-        details: "Kept delivery predictable across platform lifecycle.",
-      },
-      {
-        id: "exp-lyca-ire",
-        type: "experience",
-        title: "Product & Business Development Manager",
-        company: "LycaTel (Ireland) Ltd.",
-        location: "Dublin, Ireland",
-        period: "May 2014 – Jun 2018",
-        meta: "Product • Growth",
-        responsibilities: [
-          "Launched and established presence in the Irish market.",
-          "Closed enterprise deals and shaped offers for profitability + growth.",
-          "Supported field testing and resolution of live issues with operators.",
-        ],
-        relatedSkillIds: ["collaboration"],
-        details: "Connected business goals with execution under real constraints.",
-      },
-      {
-        id: "exp-lyca-uk",
-        type: "experience",
-        title: "Business Development Manager",
-        company: "LycaTel Distribution UK Ltd.",
-        location: "London, UK",
-        period: "May 2012 – May 2014",
-        meta: "Sales • Strategy",
-        responsibilities: ["Expanded product reach and revenue across territories.", "Implemented sales & marketing strategies and improved pipeline tracking."],
-        relatedSkillIds: ["collaboration"],
-        details: "Partnership growth with strong execution.",
-      },
+      { id: "exp-fullscale", type: "experience", title: "DevOps Engineer", company: "FullScale.ie", location: "Dublin, Ireland", period: "Jun 2023 – Present", meta: "AWS • Jenkins • Docker • Kubernetes • Terraform • Prometheus/Grafana", responsibilities: ["Built and maintained CI/CD pipelines (Jenkins) for automated build, test and deployments.", "Containerised services with Docker and managed Kubernetes deployments for scalable delivery.", "Implemented Infrastructure as Code using Terraform (repeatable provisioning, auditability).", "Operationalised monitoring with Prometheus + Grafana (dashboards + actionable alerts).", "Managed AWS infra (EC2, S3, IAM, VPC) with security-first practices.", "Partnered with dev + product teams to reduce friction and ship reliably."], relatedSkillIds: ["aws", "jenkins", "docker", "kubernetes", "terraform", "prometheus", "grafana", "git", "collaboration"], details: "Reliable deployments + scalable operations for a cloud marketplace." },
+      { id: "exp-chillcart", type: "experience", title: "Project Co-Ordinator", company: "Chillcart Ltd.", location: "Dublin, Ireland", period: "Jun 2018 – Jun 2023", meta: "Delivery • Coordination", responsibilities: ["Coordinated daily project delivery across partners and internal teams.", "Owned planning, scheduling, and risk tracking for feature releases.", "Managed delivery operations with Monday.com, Trello and Google Workspace."], relatedSkillIds: ["pm", "collaboration"], details: "Kept delivery predictable across platform lifecycle." },
+      { id: "exp-lyca-ire", type: "experience", title: "Product & Business Development Manager", company: "LycaTel (Ireland) Ltd.", location: "Dublin, Ireland", period: "May 2014 – Jun 2018", meta: "Product • Growth", responsibilities: ["Launched and established presence in the Irish market.", "Closed enterprise deals and shaped offers for profitability + growth.", "Supported field testing and resolution of live issues with operators."], relatedSkillIds: ["collaboration"], details: "Connected business goals with execution under real constraints." },
+      { id: "exp-lyca-uk", type: "experience", title: "Business Development Manager", company: "LycaTel Distribution UK Ltd.", location: "London, UK", period: "May 2012 – May 2014", meta: "Sales • Strategy", responsibilities: ["Expanded product reach and revenue across territories.", "Implemented sales & marketing strategies and improved pipeline tracking."], relatedSkillIds: ["collaboration"], details: "Partnership growth with strong execution." },
     ];
 
     const education = [
@@ -1357,40 +1203,11 @@ export default function App() {
     const principles = ["Automate the boring parts.", "Prefer repeatability over heroics.", "Observability is a feature.", "Ship small changes, often."];
 
     const baseCards = [
-      ...experiences.map((e) => ({
-        id: e.id,
-        baseId: e.id,
-        type: "experience",
-        title: e.title,
-        company: e.company,
-        logoText: initials(e.company),
-        meta: e.meta,
-        palette: pickPalette(e.company),
-      })),
-      ...Object.values(skills).map((s) => ({
-        id: `skill-${s.id}`,
-        baseId: `skill-${s.id}`,
-        type: "skill",
-        title: s.title,
-        company: s.subtitle,
-        logoText: initials(s.title),
-        meta: s.desc,
-        palette: pickPalette(s.title),
-        skillId: s.id,
-      })),
-      ...education.map((e) => ({
-        id: e.id,
-        baseId: e.id,
-        type: "education",
-        title: e.title,
-        company: e.school,
-        logoText: initials(e.school),
-        meta: e.period,
-        palette: pickPalette(e.school),
-      })),
+      ...experiences.map((e) => ({ id: e.id, baseId: e.id, type: "experience", title: e.title, company: e.company, logoText: initials(e.company), meta: e.meta, palette: pickPalette(e.company) })),
+      ...Object.values(skills).map((s) => ({ id: `skill-${s.id}`, baseId: `skill-${s.id}`, type: "skill", title: s.title, company: s.subtitle, logoText: initials(s.title), meta: s.desc, palette: pickPalette(s.title), skillId: s.id })),
+      ...education.map((e) => ({ id: e.id, baseId: e.id, type: "education", title: e.title, company: e.school, logoText: initials(e.school), meta: e.period, palette: pickPalette(e.school) })),
     ];
 
-    // ✅ Mobile: more items before cap (denser globe)
     const loops = isMobile ? 4 : 3;
     const expanded = [];
     for (let i = 0; i < loops; i++) for (let j = 0; j < baseCards.length; j++) expanded.push({ ...baseCards[j], id: `${baseCards[j].id}-${i}` });
@@ -1401,7 +1218,6 @@ export default function App() {
       { id: "social-email", baseId: "social-email", type: "link", title: "Email", company: "srinu.galla@gmail.com", logoText: "@", meta: "Send me an email", palette: pickPalette("Email"), url: "mailto:srinu.galla@gmail.com" },
     ];
 
-    // ✅ Mobile: allow more icons (still controlled, not chaotic)
     const maxGlobeItems = isMobile ? 64 : 52;
     const items = [...expanded.slice(0, maxGlobeItems), ...socials];
 
@@ -1625,7 +1441,7 @@ export default function App() {
   };
 
   const AboutContent = () => {
-    // unchanged from your “nearly perfect” version
+    // unchanged
     const card = theme === "light" ? "border-black/12 bg-white/88" : "border-white/12 bg-white/[0.03]";
     const section = theme === "light" ? "border-black/10 bg-black/[0.03]" : "border-white/10 bg-white/[0.03]";
     const label = theme === "light" ? "text-black/55" : "text-white/55";
@@ -1649,8 +1465,7 @@ export default function App() {
         <div className={cn("rounded-3xl border p-5", section)}>
           <div className={cn("text-xs font-semibold tracking-widest", label)}>HIRE-READY DEVOPS</div>
           <div className={cn("mt-3 text-[15px] leading-6", subtle)}>
-            I help teams ship faster <span className={cn("font-semibold", text)}>without breaking production</span>.
-            I build the delivery backbone — CI/CD, Kubernetes, IaC, and monitoring — so releases become predictable, incident response becomes calm, and operations becomes scalable.
+            I help teams ship faster <span className={cn("font-semibold", text)}>without breaking production</span>. I build the delivery backbone — CI/CD, Kubernetes, IaC, and monitoring — so releases become predictable, incident response becomes calm, and operations becomes scalable.
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -1672,29 +1487,13 @@ export default function App() {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <a
-              href="https://www.linkedin.com/in/sgalla/"
-              target="_blank"
-              rel="noreferrer"
-              className={cn("inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold", theme === "light" ? "bg-black text-white" : "bg-white text-black")}
-            >
+            <a href="https://www.linkedin.com/in/sgalla/" target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold", theme === "light" ? "bg-black text-white" : "bg-white text-black")}>
               <Linkedin className="h-4 w-4" /> LinkedIn
             </a>
-            <a
-              href="https://github.com/srinugalla/srinugalla"
-              target="_blank"
-              rel="noreferrer"
-              className={cn("inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold", theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white")}
-            >
+            <a href="https://github.com/srinugalla/srinugalla" target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold", theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white")}>
               <Github className="h-4 w-4" /> GitHub
             </a>
-            <button
-              onClick={() => {
-                setAboutOpen(false);
-                setContactOpen(true);
-              }}
-              className={cn("inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold border", theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white")}
-            >
+            <button onClick={() => { setAboutOpen(false); setContactOpen(true); }} className={cn("inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold border", theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white")}>
               <Mail className="h-4 w-4" /> Contact
             </button>
           </div>
@@ -1740,6 +1539,26 @@ export default function App() {
         </div>
       </div>
     );
+  };
+
+  const browseCards = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const c of data.items) {
+      const key = c.baseId || c.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ ...c, id: key });
+    }
+    return out;
+  }, [data.items]);
+
+  const reset = () => {
+    setSelected(null);
+    setContactOpen(false);
+    setBrowseOpen(false);
+    setAboutOpen(false);
+    setModalOrigin(null);
   };
 
   return (

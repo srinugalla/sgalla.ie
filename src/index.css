@@ -8,9 +8,20 @@ body,
   height: 100%;
 }
 
+/* ✅ stop mobile page from “moving” while dragging globe */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   overflow: hidden;
+
+  /* iOS Safari rubber-band / scroll glitch fix */
+  position: fixed;
+  inset: 0;
+  width: 100%;
 }
 
 * {
@@ -22,10 +33,15 @@ body {
   will-change: transform;
 }
 
-/* prevent iOS “double tap to zoom” jitter on globe drag */
+/* prevent iOS “double tap to zoom” jitter + keep gestures inside */
 .globe-card,
 canvas {
   touch-action: none;
+}
+
+/* allow smooth scrolling inside modal only */
+.modal-scroll {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* subtle premium click animation */
@@ -62,15 +78,13 @@ a:focus-visible {
   opacity: 0.9;
 }
 
-/* --------------------- EXACTLY 5 sparkle flashes (until Browse clicked) --------------------- */
-/* Attach to buttons via class "hint-sparkle" / "hint-sparkle-soft" */
+/* --------------------- EXACTLY 3 sparkle flashes (until Browse clicked) --------------------- */
 .hint-sparkle,
 .hint-sparkle-soft {
   position: relative;
   overflow: hidden;
 }
 
-/* a little star glint that sweeps across (5 times, then stops) */
 .hint-sparkle::after,
 .hint-sparkle-soft::after {
   content: "";
@@ -78,65 +92,32 @@ a:focus-visible {
   inset: -40% -60%;
   transform: translateX(-40%) rotate(18deg);
   pointer-events: none;
-
-  /* spark */
   background:
     radial-gradient(circle at 50% 50%, rgba(255,255,255,0.85), rgba(255,255,255,0) 58%),
     linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.55), rgba(255,255,255,0));
   opacity: 0;
-
   animation: sparkle-sweep 0.55s ease-in-out 0.12s 3;
 }
 
 @keyframes sparkle-sweep {
-  0% {
-    opacity: 0;
-    transform: translateX(-55%) rotate(18deg);
-    filter: blur(1px);
-  }
-  25% {
-    opacity: 0.9;
-  }
-  60% {
-    opacity: 0.6;
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(55%) rotate(18deg);
-    filter: blur(1.25px);
-  }
+  0% { opacity: 0; transform: translateX(-55%) rotate(18deg); filter: blur(1px); }
+  25% { opacity: 0.9; }
+  60% { opacity: 0.6; }
+  100% { opacity: 0; transform: translateX(55%) rotate(18deg); filter: blur(1.25px); }
 }
 
 /* --------------------- legacy globe slice styles (kept minimal) --------------------- */
-.globe-shell {
-  transform-style: preserve-3d;
-  pointer-events: none;
-}
-
-.globe-bend {
-  transform-style: preserve-3d;
-  border-radius: inherit;
-  overflow: hidden;
-}
-
+.globe-shell { transform-style: preserve-3d; pointer-events: none; }
+.globe-bend { transform-style: preserve-3d; border-radius: inherit; overflow: hidden; }
 .globe-slice {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 4.3%;
-  margin-left: -0.215%;
-  transform-style: preserve-3d;
-  transform-origin: center center;
+  position: absolute; top: 0; bottom: 0; width: 4.3%; margin-left: -0.215%;
+  transform-style: preserve-3d; transform-origin: center center;
   transform: translateZ(calc(var(--sliceZ, 0px) + var(--sliceBulge, 0px))) rotateY(var(--sliceRot, 0deg));
   filter: none;
 }
-
 .globe-bend::after {
   content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: linear-gradient(
     to right,
     rgba(0, 0, 0, calc(0.06 + (var(--curveAbs, 0) * 0.18))),
@@ -147,34 +128,21 @@ a:focus-visible {
   mix-blend-mode: multiply;
   opacity: 0.7;
 }
-
-.globe-glass {
-  pointer-events: none;
-  border-radius: inherit;
-  mix-blend-mode: overlay;
-}
-
+.globe-glass { pointer-events: none; border-radius: inherit; mix-blend-mode: overlay; }
 .globe-glass-dark {
   background: radial-gradient(140% 100% at 50% 10%, rgba(255, 255, 255, calc(0.22 + (var(--facing, 0.5) * 0.14))), rgba(0, 0, 0, 0) 56%),
     radial-gradient(120% 110% at 50% 55%, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0) 58%),
     radial-gradient(140% 120% at 50% 120%, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0) 62%);
   opacity: 0.92;
 }
-
 .globe-glass-light {
   background: radial-gradient(140% 100% at 50% 10%, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0) 56%),
     radial-gradient(120% 110% at 50% 55%, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0) 58%),
     radial-gradient(140% 120% at 50% 120%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0) 62%);
   opacity: 0.58;
 }
-
-.globe-content {
-  position: relative;
-  z-index: 2;
-}
+.globe-content { position: relative; z-index: 2; }
 
 @media (max-width: 640px) {
-  .globe-bend::after {
-    opacity: 0.85;
-  }
+  .globe-bend::after { opacity: 0.85; }
 }
