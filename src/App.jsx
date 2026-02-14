@@ -105,7 +105,7 @@ function rgba(hex, a) {
 }
 
 /* ----------------------------- Starfield (+ meteors) ----------------------------- */
-/* ✅ FIXED: spawnAcc + drawMeteor + consistent time units */
+/* ✅ Faster: pause when tab hidden + higher meteor frequency */
 function Starfield({ density = 650, theme = "dark" }) {
   const ref = useRef(null);
   const raf = useRef(0);
@@ -114,6 +114,7 @@ function Starfield({ density = 650, theme = "dark" }) {
   const sizeRef = useRef({ w: window.innerWidth, h: window.innerHeight });
   const lastT = useRef(0);
   const spawnAcc = useRef(0);
+  const runningRef = useRef(true);
 
   useEffect(() => {
     const canvas = ref.current;
@@ -144,18 +145,17 @@ function Starfield({ density = 650, theme = "dark" }) {
         ph: Math.random() * Math.PI * 2,
       }));
 
-      meteors.current = meteors.current.slice(0, 2);
+      meteors.current = meteors.current.slice(0, 3);
     };
 
     const spawnMeteor = () => {
       const { w, h } = sizeRef.current;
-
       const fromTop = Math.random() < 0.74;
       const x = fromTop ? Math.random() * w : -80;
       const y = fromTop ? -80 : Math.random() * (h * 0.55);
 
       const ang = (Math.PI / 180) * (22 + Math.random() * 18);
-      const sp = (fromTop ? 920 : 820) * (0.85 + Math.random() * 0.4); // px/sec
+      const sp = (fromTop ? 980 : 860) * (0.85 + Math.random() * 0.4);
 
       meteors.current.push({
         x,
@@ -163,9 +163,9 @@ function Starfield({ density = 650, theme = "dark" }) {
         vx: Math.cos(ang) * sp,
         vy: Math.sin(ang) * sp,
         age: 0,
-        life: 0.55 + Math.random() * 0.35, // seconds
-        len: 120 + Math.random() * 160,
-        thick: 1.1 + Math.random() * 1.5,
+        life: 0.55 + Math.random() * 0.35,
+        len: 140 + Math.random() * 180,
+        thick: 1.0 + Math.random() * 1.6,
       });
     };
 
@@ -173,21 +173,19 @@ function Starfield({ density = 650, theme = "dark" }) {
       const p = clamp(m.age / m.life, 0, 1);
       const fade = 1 - p;
 
-      const dx = m.vx;
-      const dy = m.vy;
-      const mag = Math.max(0.001, Math.hypot(dx, dy));
-      const ux = dx / mag;
-      const uy = dy / mag;
+      const mag = Math.max(0.001, Math.hypot(m.vx, m.vy));
+      const ux = m.vx / mag;
+      const uy = m.vy / mag;
 
       const x2 = m.x - ux * m.len;
       const y2 = m.y - uy * m.len;
 
       const g = ctx.createLinearGradient(m.x, m.y, x2, y2);
       if (theme === "light") {
-        g.addColorStop(0, `rgba(0,0,0,${0.55 * fade})`);
+        g.addColorStop(0, `rgba(0,0,0,${0.52 * fade})`);
         g.addColorStop(1, `rgba(0,0,0,0)`);
       } else {
-        g.addColorStop(0, `rgba(255,255,255,${0.75 * fade})`);
+        g.addColorStop(0, `rgba(255,255,255,${0.78 * fade})`);
         g.addColorStop(1, `rgba(255,255,255,0)`);
       }
 
@@ -203,19 +201,20 @@ function Starfield({ density = 650, theme = "dark" }) {
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.fillStyle = theme === "light" ? `rgba(0,0,0,${0.22 * fade})` : `rgba(255,255,255,${0.22 * fade})`;
-      ctx.arc(m.x, m.y, 2.2 + m.thick * 0.8, 0, Math.PI * 2);
+      ctx.fillStyle = theme === "light" ? `rgba(0,0,0,${0.20 * fade})` : `rgba(255,255,255,${0.22 * fade})`;
+      ctx.arc(m.x, m.y, 2.1 + m.thick * 0.75, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.restore();
     };
 
     const draw = (t) => {
-      const { w, h } = sizeRef.current;
+      if (!runningRef.current) return;
 
+      const { w, h } = sizeRef.current;
       const prev = lastT.current || t;
       lastT.current = t;
-      const dt = Math.min(40, t - prev) / 1000; // seconds
+      const dt = Math.min(40, t - prev) / 1000;
 
       ctx.clearRect(0, 0, w, h);
 
@@ -239,15 +238,15 @@ function Starfield({ density = 650, theme = "dark" }) {
         ctx.fill();
       }
 
-      // Meteors: natural-ish spawn + cap active
+      // ✅ increased meteor frequency
       const area = w * h;
-      const basePerSec = area < 450_000 ? 0.22 : area < 900_000 ? 0.18 : 0.14;
+      const basePerSec = area < 450_000 ? 0.34 : area < 900_000 ? 0.28 : 0.22;
       spawnAcc.current += dt * basePerSec;
 
       while (spawnAcc.current > 1.0) {
         spawnAcc.current -= 1.0;
-        if (meteors.current.length < 2) spawnMeteor();
-        else if (Math.random() < 0.35 && meteors.current.length < 3) spawnMeteor();
+        if (meteors.current.length < 3) spawnMeteor();
+        else if (Math.random() < 0.45 && meteors.current.length < 4) spawnMeteor();
       }
 
       const next = [];
@@ -257,7 +256,7 @@ function Starfield({ density = 650, theme = "dark" }) {
         m.y += m.vy * dt;
 
         const alive = m.age < m.life;
-        const near = m.x > -500 && m.x < w + 500 && m.y > -500 && m.y < h + 500;
+        const near = m.x > -520 && m.x < w + 520 && m.y > -520 && m.y < h + 520;
 
         if (alive && near) {
           drawMeteor(m);
@@ -269,12 +268,28 @@ function Starfield({ density = 650, theme = "dark" }) {
       raf.current = requestAnimationFrame(draw);
     };
 
+    const onVis = () => {
+      const hidden = document.hidden;
+      runningRef.current = !hidden;
+
+      if (!hidden) {
+        lastT.current = performance.now();
+        cancelAnimationFrame(raf.current);
+        raf.current = requestAnimationFrame(draw);
+      } else {
+        cancelAnimationFrame(raf.current);
+      }
+    };
+
     resize();
     window.addEventListener("resize", resize);
+    document.addEventListener("visibilitychange", onVis);
+
     raf.current = requestAnimationFrame(draw);
 
     return () => {
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", onVis);
       cancelAnimationFrame(raf.current);
     };
   }, [density, theme]);
@@ -309,7 +324,7 @@ function Modal({ open, onClose, title, children, theme = "dark", origin }) {
           <div className={cn("absolute inset-0 backdrop-blur", overlay)} onClick={onClose} />
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <motion.div
-              className={cn("w-[min(980px,92vw)] overflow-hidden rounded-3xl border shadow-[0_24px_110px_rgba(0,0,0,0.40)]", panel)}
+              className={cn("modal-panel w-[min(980px,92vw)] overflow-hidden rounded-3xl border shadow-[0_24px_110px_rgba(0,0,0,0.40)]", panel)}
               style={{ transformOrigin: `${ox}% ${oy}%` }}
               initial={{ y: 10, scale: 0.96, opacity: 0, filter: "blur(4px)" }}
               animate={{ y: 0, scale: 1, opacity: 1, filter: "blur(0px)" }}
@@ -344,7 +359,6 @@ function premiumSphereLayout(items, { isMobile }) {
     const golden = Math.PI * (3 - Math.sqrt(5));
     for (let i = 0; i < n; i++) {
       const it = items[i];
-
       const t = (i + 0.5) / n;
       const y = 1 - 2 * t;
 
@@ -357,7 +371,6 @@ function premiumSphereLayout(items, { isMobile }) {
 
       lon += jl;
       lat += jt;
-
       lat = clamp(lat, -1.50, 1.50);
 
       out.set(it.id, { lon, lat });
@@ -427,6 +440,7 @@ function premiumSphereLayout(items, { isMobile }) {
 }
 
 /* --------------------------------- Globe --------------------------------- */
+/* ✅ Touch swipe fixes + prevent page scroll + reduce overlap via fewer items (handled in App data) */
 function Globe({ items, onSelect, theme = "dark", isMobile }) {
   const wrapRef = useRef(null);
   const innerRef = useRef(null);
@@ -435,13 +449,21 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
   const rot = useRef({ x: BASE_X, y: 18 });
   const vel = useRef({ y: isMobile ? 0.070 : 0.095 });
 
-  const drag = useRef({ active: false, lx: 0, pointerType: "mouse", pid: null });
+  const drag = useRef({
+    active: false,
+    pending: false,
+    startX: 0,
+    lx: 0,
+    pointerType: "mouse",
+    pid: null,
+  });
   const lastInteract = useRef(0);
 
   const [R, setR] = useState(420);
   const [wrapSize, setWrapSize] = useState(960);
   const [cardScale, setCardScale] = useState(1);
 
+  // cached nodes with lon/lat
   const cardNodesRef = useRef([]);
   const frameRef = useRef(0);
 
@@ -488,28 +510,37 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    cardNodesRef.current = Array.from(el.querySelectorAll("[data-card='1']"));
+
+    const nodes = Array.from(el.querySelectorAll("[data-card='1']"));
+    cardNodesRef.current = nodes.map((node) => ({
+      node,
+      lon: Number(node.dataset.lon || 0),
+      lat: Number(node.dataset.lat || 0),
+      z: null,
+      op: null,
+      ds: null,
+    }));
   }, [items.length]);
 
+  // ✅ Prevent page scroll / rubber band while dragging OR when swipe starts on a card
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
 
     el.style.touchAction = "none";
-
     const onTouchMove = (e) => {
-      if (drag.current.active) e.preventDefault();
+      if (drag.current.active || drag.current.pending) e.preventDefault();
     };
-
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     return () => el.removeEventListener("touchmove", onTouchMove);
   }, []);
 
+  // ✅ Single RAF loop
   useEffect(() => {
     let raf = 0;
     let last = performance.now();
 
-    const updateDepth = (themeNow) => {
+    const updateDepth = (themeNow, doFull) => {
       const nodes = cardNodesRef.current;
       if (!nodes || nodes.length === 0) return;
 
@@ -521,12 +552,10 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
       const sinX = Math.sin(rx),
         cosX = Math.cos(rx);
 
-      frameRef.current = (frameRef.current + 1) % 2;
-      const doFull = frameRef.current === 0;
-
-      for (const node of nodes) {
-        const lon = parseFloat(node.dataset.lon || "0");
-        const lat = parseFloat(node.dataset.lat || "0");
+      for (const it of nodes) {
+        const node = it.node;
+        const lon = it.lon;
+        const lat = it.lat;
 
         const x = Math.sin(lon) * Math.cos(lat);
         const y = Math.sin(lat);
@@ -539,13 +568,26 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
         const z2 = y * sinX + z1 * cosX;
 
         const depth01 = clamp((z2 + 1) / 2, 0, 1);
-        node.style.zIndex = String(100 + Math.round(depth01 * 900));
+
+        const zi = 100 + Math.round(depth01 * 900);
+        if (it.z !== zi) {
+          it.z = zi;
+          node.style.zIndex = String(zi);
+        }
 
         if (doFull) {
           const farDim = themeNow === "light" ? 0.93 : 0.90;
-          node.style.opacity = String(lerp(farDim, 1, depth01));
-          const s = lerp(0.992, 1.035, depth01);
-          node.style.setProperty("--depthScale", String(s));
+          const op = lerp(farDim, 1, depth01);
+          const ds = lerp(0.992, 1.035, depth01);
+
+          if (it.op == null || Math.abs(it.op - op) > 0.01) {
+            it.op = op;
+            node.style.opacity = String(op);
+          }
+          if (it.ds == null || Math.abs(it.ds - ds) > 0.001) {
+            it.ds = ds;
+            node.style.setProperty("--depthScale", String(ds));
+          }
         }
       }
     };
@@ -568,7 +610,11 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
 
       if (innerRef.current) innerRef.current.style.transform = `rotateX(${rot.current.x}deg) rotateY(${rot.current.y}deg)`;
 
-      updateDepth(theme);
+      const mod = isMobile ? 3 : 2;
+      frameRef.current = (frameRef.current + 1) % mod;
+      const doFull = frameRef.current === 0;
+
+      updateDepth(theme, doFull);
 
       raf = requestAnimationFrame(tick);
     };
@@ -577,20 +623,26 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
     return () => cancelAnimationFrame(raf);
   }, [isMobile, theme]);
 
+  // ✅ Touch-first drag: swipe rotates even when finger starts on a card (capture + threshold)
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
 
-    const onDown = (e) => {
-      if (e.target?.closest?.("button[data-card='1']")) return;
+    const THRESH = 6;
 
+    const onDown = (e) => {
       e.preventDefault?.();
 
-      drag.current.active = true;
+      const pressedCard = e.target?.closest?.("button[data-card='1']");
       drag.current.pointerType = e.pointerType || "mouse";
       drag.current.pid = e.pointerId;
-      lastInteract.current = performance.now();
       drag.current.lx = e.clientX;
+      drag.current.startX = e.clientX;
+      lastInteract.current = performance.now();
+
+      // if starting on a card: wait until threshold to start rotating
+      drag.current.active = !pressedCard;
+      drag.current.pending = !!pressedCard;
 
       try {
         el.setPointerCapture?.(e.pointerId);
@@ -598,40 +650,54 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
     };
 
     const onMove = (e) => {
-      if (!drag.current.active) return;
       if (drag.current.pid != null && e.pointerId !== drag.current.pid) return;
+      if (!drag.current.active && !drag.current.pending) return;
 
       e.preventDefault?.();
+
+      const totalDx = e.clientX - (drag.current.startX ?? drag.current.lx);
+
+      if (drag.current.pending && Math.abs(totalDx) > THRESH) {
+        drag.current.pending = false;
+        drag.current.active = true;
+
+        // ✅ cancel a card "tap open" when swipe begins
+        tapRef.current.moved = true;
+      }
+
+      if (!drag.current.active) return;
 
       lastInteract.current = performance.now();
       const dx = e.clientX - drag.current.lx;
       drag.current.lx = e.clientX;
 
       const isTouch = drag.current.pointerType === "touch";
-      rot.current.y += dx * (isTouch ? 0.22 : 0.16);
-      vel.current.y = dx * (isTouch ? 0.080 : 0.060);
+      rot.current.y += dx * (isTouch ? 0.24 : 0.16);
+      vel.current.y = dx * (isTouch ? 0.090 : 0.060);
     };
 
     const onUp = (e) => {
       if (drag.current.pid != null && e.pointerId !== drag.current.pid) return;
       drag.current.active = false;
+      drag.current.pending = false;
       drag.current.pid = null;
       lastInteract.current = performance.now();
     };
 
-    el.addEventListener("pointerdown", onDown, { passive: false });
+    el.addEventListener("pointerdown", onDown, { passive: false, capture: true });
     window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp, { passive: true });
     window.addEventListener("pointercancel", onUp, { passive: true });
 
     return () => {
-      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointerdown", onDown, { capture: true });
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
   }, []);
 
+  // Wheel
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -733,6 +799,7 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
                     WebkitBackfaceVisibility: "hidden",
                   }}
                   onPointerDown={(e) => {
+                    // keep tap support
                     e.stopPropagation();
                     e.preventDefault?.();
                     tapRef.current.downX = e.clientX;
@@ -870,11 +937,14 @@ function Globe({ items, onSelect, theme = "dark", isMobile }) {
 }
 
 /* ---------------------------------- HUD ---------------------------------- */
-function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, onHome, nameText, showBrowseHint }) {
+/* ✅ Mobile: icons ~12% smaller (desktop unchanged) */
+function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, onHome, nameText, showBrowseHint, isMobile }) {
   const btnBase = "rounded-full border transition relative";
   const btnDark = "border-white/12 bg-white/[0.03] text-white/85 hover:bg-white/[0.06]";
   const btnLight = "border-black/10 bg-black/[0.03] text-black/75 hover:bg-black/[0.06]";
   const btn = theme === "light" ? btnLight : btnDark;
+
+  const ico = isMobile ? "h-3.5 w-3.5" : "h-4 w-4";
 
   return (
     <div className="fixed inset-x-0 top-0 z-30">
@@ -902,11 +972,12 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, onHo
 
             <button onClick={onToggleTheme} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
               <span className="inline-flex items-center gap-2">
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {theme === "dark" ? <Sun className={ico} /> : <Moon className={ico} />}
                 {theme === "dark" ? "Light" : "Dark"}
               </span>
             </button>
 
+            {/* ✅ subtle sparkle icon added */}
             <motion.button
               onClick={onBrowse}
               className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold", showBrowseHint ? "hint-glow hint-sparkle-5" : "")}
@@ -916,12 +987,13 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, onHo
               transition={showBrowseHint ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : undefined}
             >
               <span className="inline-flex items-center gap-2">
-                <LayoutGrid className="h-4 w-4" /> Browse
+                <Sparkles className={cn(ico, "browse-star")} />
+                <LayoutGrid className={ico} /> Browse
               </span>
             </motion.button>
 
             <button onClick={onReset} className={cn(btnBase, btn, "p-2")} aria-label="Reset" title="Reset">
-              <RotateCcw className="h-4 w-4" />
+              <RotateCcw className={ico} />
             </button>
 
             <button onClick={onContact} className={cn(btnBase, btn, "px-4 py-2 text-xs font-semibold")}>
@@ -935,6 +1007,7 @@ function Hud({ theme, onToggleTheme, onBrowse, onReset, onContact, onAbout, onHo
 }
 
 /* ------------------------------- Browse View ------------------------------ */
+/* ✅ Added subtle effects (no layout change) */
 function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
   const pillBase = "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition";
   const active = theme === "light" ? "border-black/10 bg-black text-white" : "border-white/15 bg-white text-black";
@@ -943,6 +1016,11 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
       ? "border-black/10 bg-black/[0.03] text-black/70 hover:bg-black/[0.06]"
       : "border-white/12 bg-white/[0.03] text-white/80 hover:bg-white/[0.06]";
   const wrap = "mt-4 max-h-[64svh] overflow-y-auto pr-1";
+
+  const fx =
+    theme === "light"
+      ? "hover:shadow-[0_18px_70px_rgba(0,0,0,0.10)] hover:-translate-y-[1px] hover:brightness-[1.02]"
+      : "hover:shadow-[0_22px_85px_rgba(0,0,0,0.55)] hover:-translate-y-[1px] hover:brightness-[1.05]";
 
   return (
     <Modal open={open} onClose={onClose} title={mode === "grid" ? "Browse (Grid)" : "Browse (List)"} theme={theme}>
@@ -969,9 +1047,8 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
                   onClick={() => onPick(c)}
                   className={cn(
                     "browse-card group relative overflow-hidden rounded-2xl border p-3 text-left transition",
-                    theme === "light"
-                      ? "border-black/12 bg-black/[0.03] hover:bg-black/[0.06] hover:shadow-[0_16px_60px_rgba(0,0,0,0.12)]"
-                      : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06] hover:shadow-[0_18px_70px_rgba(0,0,0,0.45)]"
+                    fx,
+                    theme === "light" ? "border-black/12 bg-black/[0.03] hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
                   )}
                   style={{
                     background: `radial-gradient(circle at 24% 20%, ${a}, rgba(255,255,255,0.10) 30%, rgba(0,0,0,0) 62%),
@@ -1018,9 +1095,8 @@ function BrowseView({ open, onClose, mode, setMode, cards, onPick, theme }) {
                   onClick={() => onPick(c)}
                   className={cn(
                     "browse-card group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition",
-                    theme === "light"
-                      ? "border-black/12 bg-black/[0.03] hover:bg-black/[0.06] hover:shadow-[0_16px_60px_rgba(0,0,0,0.10)]"
-                      : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06] hover:shadow-[0_18px_70px_rgba(0,0,0,0.45)]"
+                    fx,
+                    theme === "light" ? "border-black/12 bg-black/[0.03] hover:bg-black/[0.06]" : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
                   )}
                   style={{
                     background: `radial-gradient(circle at 22% 20%, ${a}, rgba(255,255,255,0.08) 32%, rgba(0,0,0,0) 62%),
@@ -1174,9 +1250,14 @@ export default function App() {
       ...education.map((e) => ({ id: e.id, baseId: e.id, type: "education", title: e.title, company: e.school, logoText: initials(e.school), meta: e.period, palette: pickPalette(e.school) })),
     ];
 
+    // expanded loop for globe density
     const loops = isMobile ? 4 : 3;
     const expanded = [];
-    for (let i = 0; i < loops; i++) for (let j = 0; j < baseCards.length; j++) expanded.push({ ...baseCards[j], id: `${baseCards[j].id}-${i}` });
+    for (let i = 0; i < loops; i++) {
+      for (let j = 0; j < baseCards.length; j++) {
+        expanded.push({ ...baseCards[j], id: `${baseCards[j].id}-${i}` });
+      }
+    }
 
     const socials = [
       { id: "social-linkedin", baseId: "social-linkedin", type: "link", title: "LinkedIn", company: "Connect", logoText: "in", meta: "Open my LinkedIn profile", palette: pickPalette("LinkedIn"), url: "https://www.linkedin.com/in/sgalla/" },
@@ -1184,28 +1265,31 @@ export default function App() {
       { id: "social-email", baseId: "social-email", type: "link", title: "Email", company: "srinu.galla@gmail.com", logoText: "@", meta: "Send me an email", palette: pickPalette("Email"), url: "mailto:srinu.galla@gmail.com" },
     ];
 
-    const maxGlobeItems = isMobile ? 64 : 52;
-    const items = [...expanded.slice(0, maxGlobeItems), ...socials];
+    // ✅ reduce globe count by ~15% to avoid overlaps (mobile + desktop)
+    const maxGlobeItems = isMobile ? 54 : 44;
+    const globeItems = [...expanded.slice(0, maxGlobeItems), ...socials];
 
-    return { items, experiences, education, skills, principles };
+    // ✅ keep ALL content for Browse (no content removed)
+    const browseSource = [...baseCards, ...socials];
+
+    return { globeItems, browseSource, experiences, education, skills, principles };
   }, [isMobile]);
 
-  // ✅ keep only ONE browseCards (your file had it twice)
+  // ✅ Browse uses full unique set, not the reduced globe subset
   const browseCards = useMemo(() => {
     const seen = new Set();
     const out = [];
-    for (const c of data.items) {
+    for (const c of data.browseSource) {
       const key = c.baseId || c.id;
       if (seen.has(key)) continue;
       seen.add(key);
       out.push({ ...c, id: key });
     }
     return out;
-  }, [data.items]);
+  }, [data.browseSource]);
 
   const rootBg = theme === "light" ? "bg-[#f5f7fb] text-black" : "bg-black text-white";
 
-  // ✅ keep only ONE reset (your file had it twice)
   const reset = () => {
     setSelected(null);
     setContactOpen(false);
@@ -1234,7 +1318,12 @@ export default function App() {
     );
 
     const Pill = ({ children }) => (
-      <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", theme === "light" ? "border-black/10 bg-white/75 text-black/75" : "border-white/12 bg-black/30 text-white/75")}>
+      <span
+        className={cn(
+          "rounded-full border px-3 py-1 text-xs font-semibold",
+          theme === "light" ? "border-black/10 bg-white/75 text-black/75" : "border-white/12 bg-black/30 text-white/75"
+        )}
+      >
         {children}
       </span>
     );
@@ -1454,10 +1543,23 @@ export default function App() {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <a href="https://www.linkedin.com/in/sgalla/" target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold", theme === "light" ? "bg-black text-white" : "bg-white text-black")}>
+            <a
+              href="https://www.linkedin.com/in/sgalla/"
+              target="_blank"
+              rel="noreferrer"
+              className={cn("inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold", theme === "light" ? "bg-black text-white" : "bg-white text-black")}
+            >
               <Linkedin className="h-4 w-4" /> LinkedIn
             </a>
-            <a href="https://github.com/srinugalla/srinugalla" target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold", theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white")}>
+            <a
+              href="https://github.com/srinugalla/srinugalla"
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                "inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold",
+                theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white"
+              )}
+            >
               <Github className="h-4 w-4" /> GitHub
             </a>
             <button
@@ -1465,7 +1567,10 @@ export default function App() {
                 setAboutOpen(false);
                 setContactOpen(true);
               }}
-              className={cn("inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold border", theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white")}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold border",
+                theme === "light" ? "border-black/12 bg-white text-black" : "border-white/15 bg-black/30 text-white"
+              )}
             >
               <Mail className="h-4 w-4" /> Contact
             </button>
@@ -1520,6 +1625,7 @@ export default function App() {
 
       <Hud
         theme={theme}
+        isMobile={isMobile}
         nameText={nameText}
         showBrowseHint={showBrowseHint}
         onHome={() => {
@@ -1535,7 +1641,7 @@ export default function App() {
 
       {!browseOpen && (
         <Globe
-          items={data.items}
+          items={data.globeItems}
           theme={theme}
           isMobile={isMobile}
           onSelect={(it, pt) => {
@@ -1571,42 +1677,10 @@ export default function App() {
           </div>
 
           {[
-            {
-              href: "mailto:srinu.galla@gmail.com",
-              left: (
-                <>
-                  <Mail className="h-4 w-4" /> srinu.galla@gmail.com
-                </>
-              ),
-              ext: false,
-            },
-            {
-              href: "https://github.com/srinugalla/srinugalla",
-              left: (
-                <>
-                  <Github className="h-4 w-4" /> GitHub
-                </>
-              ),
-              ext: true,
-            },
-            {
-              href: "https://www.linkedin.com/in/sgalla/",
-              left: (
-                <>
-                  <Linkedin className="h-4 w-4" /> LinkedIn
-                </>
-              ),
-              ext: true,
-            },
-            {
-              href: "tel:+353866005678",
-              left: (
-                <>
-                  <Phone className="h-4 w-4" /> +353 86 600 5678
-                </>
-              ),
-              ext: false,
-            },
+            { href: "mailto:srinu.galla@gmail.com", left: (<><Mail className="h-4 w-4" /> srinu.galla@gmail.com</>), ext: false },
+            { href: "https://github.com/srinugalla/srinugalla", left: (<><Github className="h-4 w-4" /> GitHub</>), ext: true },
+            { href: "https://www.linkedin.com/in/sgalla/", left: (<><Linkedin className="h-4 w-4" /> LinkedIn</>), ext: true },
+            { href: "tel:+353866005678", left: (<><Phone className="h-4 w-4" /> +353 86 600 5678</>), ext: false },
           ].map((row, i) => (
             <a
               key={i}
@@ -1625,13 +1699,7 @@ export default function App() {
         </div>
       </Modal>
 
-      <Modal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title={selected?.company ? `${selected.company}` : selected?.title || "Details"}
-        theme={theme}
-        origin={modalOrigin || undefined}
-      >
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.company ? `${selected.company}` : selected?.title || "Details"} theme={theme} origin={modalOrigin || undefined}>
         <DetailsModal />
       </Modal>
 
