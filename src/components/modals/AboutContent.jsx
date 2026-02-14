@@ -6,14 +6,14 @@ import {
   Cloud,
   GitBranch,
   Github,
-  GithubActions,
   Linkedin,
   Mail,
   ShieldCheck,
   Sparkles,
   Timer,
   Wrench,
-  Layers,
+  Workflow, // ✅ safe replacement for "GithubActions"
+  Layers,   // may or may not exist; we won't use it
 } from "lucide-react";
 import { cn } from "../../utils/cn";
 
@@ -74,7 +74,10 @@ export default function AboutContent({ theme, onOpenContact }) {
             href="https://www.linkedin.com/in/sgalla/"
             target="_blank"
             rel="noopener noreferrer"
-            className={cn("inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold", theme === "light" ? "bg-black text-white" : "bg-white text-black")}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold",
+              theme === "light" ? "bg-black text-white" : "bg-white text-black"
+            )}
           >
             <Linkedin className="h-4 w-4" /> LinkedIn
           </a>
@@ -107,9 +110,9 @@ export default function AboutContent({ theme, onOpenContact }) {
         <div className={cn("text-xs font-semibold tracking-widest", label)}>WHAT I DO WELL</div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Proof icon={Cloud} title="AWS foundations" desc="IAM/VPC/networking, security-first defaults, cost awareness, and clear ownership." />
-          <Proof icon={GithubActions} title="CI/CD with GitHub Actions" desc="Fast, reliable workflows for build/test/deploy with clear visibility and easy debugging." />
-          <Proof icon={GitBranch} title="CI/CD with Jenkins" desc="Pipelines teams trust — predictable, debuggable, rollback-friendly." />
-          <Proof icon={Layers} title="Terraform (IaC)" desc="Repeatable infra via modules, state strategy, drift awareness, and PR-based changes." />
+          <Proof icon={Workflow} title="CI/CD (GitHub Actions)" desc="Reliable workflows for build/test/deploy with clear visibility and easy debugging." />
+          <Proof icon={GitBranch} title="CI/CD (Jenkins)" desc="Pipelines teams trust — predictable, debuggable, rollback-friendly." />
+          <Proof icon={Boxes} title="Terraform (IaC)" desc="Repeatable infra via modules, state strategy, drift awareness, and PR-based changes." />
           <Proof icon={Boxes} title="Kubernetes & containers" desc="Safe rollouts, scaling, consistency across environments, and operational hygiene." />
           <Proof icon={Activity} title="Observability" desc="Prometheus + Grafana for signals that reduce noise and speed response." />
           <Proof icon={ShieldCheck} title="Security & reliability mindset" desc="Guardrails, secrets hygiene, safe change management, and incident readiness." />
