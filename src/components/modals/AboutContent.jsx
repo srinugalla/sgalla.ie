@@ -1,18 +1,19 @@
 import React from "react";
 import {
   Activity,
-  BadgeCheck,
   Boxes,
   CheckCircle2,
   Cloud,
   GitBranch,
   Github,
+  GithubActions,
   Linkedin,
   Mail,
   ShieldCheck,
   Sparkles,
   Timer,
   Wrench,
+  Layers,
 } from "lucide-react";
 import { cn } from "../../utils/cn";
 
@@ -26,7 +27,12 @@ export default function AboutContent({ theme, onOpenContact }) {
   const Proof = ({ icon: Icon, title, desc }) => (
     <div className={cn("rounded-2xl border p-4", card)}>
       <div className="flex items-center gap-2">
-        <div className={cn("grid h-9 w-9 place-items-center rounded-xl border", theme === "light" ? "border-black/12 bg-black/[0.06] text-black/90" : "border-white/12 bg-black/35 text-white/90")}>
+        <div
+          className={cn(
+            "grid h-9 w-9 place-items-center rounded-xl border",
+            theme === "light" ? "border-black/12 bg-black/[0.06] text-black/90" : "border-white/12 bg-black/35 text-white/90"
+          )}
+        >
           <Icon className="h-5 w-5" />
         </div>
         <div className={cn("text-sm font-semibold", text)}>{title}</div>
@@ -39,20 +45,22 @@ export default function AboutContent({ theme, onOpenContact }) {
     <div className="grid gap-4">
       <div className={cn("rounded-3xl border p-5", section)}>
         <div className={cn("text-xs font-semibold tracking-widest", label)}>HIRE-READY DEVOPS</div>
+
         <div className={cn("mt-3 text-[15px] leading-6", subtle)}>
-          I help teams ship faster <span className={cn("font-semibold", text)}>without breaking production</span>. I build the delivery backbone — CI/CD, Kubernetes, IaC, and monitoring — so releases become predictable, incident response becomes calm, and operations becomes scalable.
+          I help teams ship faster <span className={cn("font-semibold", text)}>without breaking production</span>. I build the delivery backbone —
+          CI/CD, Kubernetes, IaC, and monitoring — so releases become predictable, incident response becomes calmer, and operations scales cleanly.
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className={cn("rounded-2xl border p-4", card)}>
             <div className={cn("text-xs font-semibold", label)}>YOU GET</div>
             <div className={cn("mt-2 text-sm font-semibold", text)}>Release confidence</div>
-            <div className={cn("mt-1 text-xs", subtle)}>Automated pipelines + safe deployment habits + rollback discipline.</div>
+            <div className={cn("mt-1 text-xs", subtle)}>Automated pipelines, safe deploy patterns, and rollback discipline.</div>
           </div>
           <div className={cn("rounded-2xl border p-4", card)}>
             <div className={cn("text-xs font-semibold", label)}>YOU GET</div>
             <div className={cn("mt-2 text-sm font-semibold", text)}>Operational clarity</div>
-            <div className={cn("mt-1 text-xs", subtle)}>Dashboards and alerts that are actionable (not noisy).</div>
+            <div className={cn("mt-1 text-xs", subtle)}>Dashboards and alerts tuned for action (not noise).</div>
           </div>
           <div className={cn("rounded-2xl border p-4", card)}>
             <div className={cn("text-xs font-semibold", label)}>YOU GET</div>
@@ -70,6 +78,7 @@ export default function AboutContent({ theme, onOpenContact }) {
           >
             <Linkedin className="h-4 w-4" /> LinkedIn
           </a>
+
           <a
             href="https://github.com/srinugalla"
             target="_blank"
@@ -81,6 +90,7 @@ export default function AboutContent({ theme, onOpenContact }) {
           >
             <Github className="h-4 w-4" /> GitHub
           </a>
+
           <button
             onClick={onOpenContact}
             className={cn(
@@ -96,11 +106,13 @@ export default function AboutContent({ theme, onOpenContact }) {
       <div className={cn("rounded-3xl border p-5", section)}>
         <div className={cn("text-xs font-semibold tracking-widest", label)}>WHAT I DO WELL</div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Proof icon={Cloud} title="AWS foundations" desc="IAM/VPC/networking, security-first defaults, cost awareness and clean ownership." />
-          <Proof icon={GitBranch} title="CI/CD delivery" desc="Jenkins pipelines teams trust — predictable, debuggable, rollback-friendly." />
-          <Proof icon={Boxes} title="Kubernetes & containers" desc="Safe rollouts, scaling, consistency across environments, operational hygiene." />
+          <Proof icon={Cloud} title="AWS foundations" desc="IAM/VPC/networking, security-first defaults, cost awareness, and clear ownership." />
+          <Proof icon={GithubActions} title="CI/CD with GitHub Actions" desc="Fast, reliable workflows for build/test/deploy with clear visibility and easy debugging." />
+          <Proof icon={GitBranch} title="CI/CD with Jenkins" desc="Pipelines teams trust — predictable, debuggable, rollback-friendly." />
+          <Proof icon={Layers} title="Terraform (IaC)" desc="Repeatable infra via modules, state strategy, drift awareness, and PR-based changes." />
+          <Proof icon={Boxes} title="Kubernetes & containers" desc="Safe rollouts, scaling, consistency across environments, and operational hygiene." />
           <Proof icon={Activity} title="Observability" desc="Prometheus + Grafana for signals that reduce noise and speed response." />
-          <Proof icon={ShieldCheck} title="Security & reliability mindset" desc="Guardrails, secrets hygiene, safe change management." />
+          <Proof icon={ShieldCheck} title="Security & reliability mindset" desc="Guardrails, secrets hygiene, safe change management, and incident readiness." />
           <Proof icon={Wrench} title="Automation & tooling" desc="Remove toil. Make ops boring. Improve day-2 operations." />
         </div>
       </div>
@@ -113,21 +125,23 @@ export default function AboutContent({ theme, onOpenContact }) {
               <CheckCircle2 className="h-4 w-4" />
               <div className={cn("text-sm font-semibold", text)}>Delivery baseline</div>
             </div>
-            <div className={cn("mt-2 text-xs", subtle)}>Clear pipeline stages, environments, versioning and rollback playbooks.</div>
+            <div className={cn("mt-2 text-xs", subtle)}>Audit pipelines, envs, versioning, secrets flow, and rollback paths.</div>
           </div>
+
           <div className={cn("rounded-2xl border p-4", card)}>
             <div className="flex items-center gap-2">
               <Timer className="h-4 w-4" />
               <div className={cn("text-sm font-semibold", text)}>Incident clarity</div>
             </div>
-            <div className={cn("mt-2 text-xs", subtle)}>Dashboards + alerts tuned for action, faster triage, fewer false alarms.</div>
+            <div className={cn("mt-2 text-xs", subtle)}>Tighten dashboards + alerts for action, faster triage, fewer false alarms.</div>
           </div>
+
           <div className={cn("rounded-2xl border p-4", card)}>
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
               <div className={cn("text-sm font-semibold", text)}>Less friction</div>
             </div>
-            <div className={cn("mt-2 text-xs", subtle)}>Automation and guardrails that improve flow without slowing teams down.</div>
+            <div className={cn("mt-2 text-xs", subtle)}>Automate repetitive steps and add guardrails that improve flow.</div>
           </div>
         </div>
       </div>
