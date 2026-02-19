@@ -40,7 +40,7 @@ An **interactive DevOps portfolio** built around a **3D rotating globe**, showca
 - 🌍 **3D Transparent Globe** with cards wrapped around the surface  
 - 🧭 **Smooth rotation** (drag, touch, trackpad friendly)  
 - 🪐 **Starfield & meteor animations** for depth and atmosphere  
-- 🌓 **Dark mode (default) + Light mode toggle**  
+- 🌓 **Dark mode + Light mode toggle**  
 - 🗂️ **Browse mode** with Grid & List views  
 - 🪟 **Rich modal popups** for Experience, Skills, Education & Links  
 - 📱 **Mobile-optimized mode** for stability and performance  
