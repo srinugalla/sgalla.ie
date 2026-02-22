@@ -3,24 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
     <meta
       name="description"
       content="Srinivasarao Galla — DevOps Engineer in Dublin. AWS, CI/CD, Kubernetes, Terraform IaC, Prometheus/Grafana observability."
     />
 
-    <!-- ✅ Avoid iOS auto-linking phone/email -->
+    <!-- Avoid iOS auto-linking -->
     <meta name="format-detection" content="telephone=no, email=no, address=no" />
 
-    <!-- ✅ Safe “app-like” hints -->
+    <!-- App-like hints -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
+    <!-- Theme colors -->
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f7fb" />
 
+    <!-- Favicons (production-grade) -->
+    <link rel="icon" href="/favicon/favicon.ico" sizes="any" />
+
+    <!-- Modern browsers (crisp at any size) -->
+    <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+
+    <!-- PNG fallbacks -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+
+    <!-- iPhone / iPad -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+
+    <!-- Android / PWA -->
+    <link rel="manifest" href="/favicon/site.webmanifest" />
+
+    <!-- Safari pinned tab -->
+    <link rel="mask-icon" href="/favicon/safari-pinned-tab.svg" color="#2ea3ff" />
+
+    <!-- Windows tiles -->
+    <meta name="msapplication-config" content="/favicon/browserconfig.xml" />
+    <meta name="msapplication-TileColor" content="#0b1220" />
+
     <title>Srinivasarao Galla | DevOps Engineer</title>
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
