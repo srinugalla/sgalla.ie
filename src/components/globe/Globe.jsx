@@ -267,9 +267,7 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
       rot.current.x = BASE_X;
       rot.current.y += vel.current.y * dt;
 
-      if (innerRef.current) {
-        innerRef.current.style.transform = `rotateX(${rot.current.x}deg) rotateY(${rot.current.y}deg)`;
-      }
+      if (innerRef.current) innerRef.current.style.transform = `rotateX(${rot.current.x}deg) rotateY(${rot.current.y}deg)`;
 
       const mod = isMobile ? 4 : 2;
       frameRef.current = (frameRef.current + 1) % mod;
@@ -291,8 +289,6 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
     const THRESH = 6;
 
     const onDown = (e) => {
-      // NOTE: iOS WebKit is sensitive to preventDefault + pointer-capture in capture phase.
-      // We only capture the pointer when the user is dragging the globe background.
       const pressedCard = e.target?.closest?.("button[data-card='1']");
 
       drag.current.pointerType = e.pointerType || "mouse";
@@ -400,8 +396,14 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
       : "linear-gradient(135deg, rgba(255,255,255,0.08), rgba(0,0,0,0) 48%), linear-gradient(315deg, rgba(255,210,140,0.03), rgba(0,0,0,0) 58%)";
 
   return (
-    <div className="relative z-10 flex h-[100svh] w-full items-center justify-center">
-      {/* iOS FIX: perspective on a NON-animated wrapper (WebKit bug with perspective + transform animation) */}
+    <div
+      className="relative z-10 flex w-full items-center justify-center"
+      style={{
+        /* iOS-safe viewport height (fixes bottom drift on some Safari builds) */
+        height: "100svh",
+        minHeight: "100svh",
+      }}
+    >
       <div
         className="relative select-none"
         style={{
@@ -413,26 +415,22 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
           WebkitTransformStyle: "preserve-3d",
         }}
       >
-        {/* ✅ NEW: animate a wrapper that does NOT own the 3D scene (prevents iOS flattening) */}
         <motion.div
           className="relative h-full w-full"
           initial={{ opacity: 0, scale: 0.7, y: 26 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] }}
           style={{
-            // ensure the animated wrapper doesn't accidentally create a flattening context for children
             transformStyle: "preserve-3d",
             WebkitTransformStyle: "preserve-3d",
           }}
         >
-          {/* ✅ NEW: wrapRef is now a plain div (no motion transforms on the 3D scene root) */}
           <div
             ref={wrapRef}
             className="relative h-full w-full"
             style={{
               transformStyle: "preserve-3d",
               WebkitTransformStyle: "preserve-3d",
-              // iOS compositing nudge
               transform: "translateZ(0.01px)",
               WebkitTransform: "translateZ(0.01px)",
             }}
@@ -446,16 +444,7 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
             />
 
             <div className="absolute inset-0" style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d" }}>
-              <div
-                ref={innerRef}
-                className="absolute inset-0"
-                style={{
-                  transformStyle: "preserve-3d",
-                  WebkitTransformStyle: "preserve-3d",
-                  backfaceVisibility: "hidden",
-                  WebkitBackfaceVisibility: "hidden",
-                }}
-              >
+              <div ref={innerRef} className="absolute inset-0" style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d" }}>
                 {items.map((it) => {
                   const p = pointsById.get(it.id) || { lon: 0, lat: 0 };
 
@@ -570,7 +559,8 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
                             }}
                           />
 
-                          <div className="absolute inset-0 backdrop-blur-[10px]" style={{ opacity: theme === "dark" ? 0.28 : 0.34 }} />
+                          {/* ✅ class hook: disable blur on iOS only (prevents 3D flattening) */}
+                          <div className="globe-blur absolute inset-0 backdrop-blur-[10px]" style={{ opacity: theme === "dark" ? 0.28 : 0.34 }} />
 
                           {isMobile ? (
                             <div className="relative flex h-full flex-col items-center justify-center gap-2 p-2">
