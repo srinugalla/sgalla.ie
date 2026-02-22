@@ -267,7 +267,9 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
       rot.current.x = BASE_X;
       rot.current.y += vel.current.y * dt;
 
-      if (innerRef.current) innerRef.current.style.transform = `rotateX(${rot.current.x}deg) rotateY(${rot.current.y}deg)`;
+      if (innerRef.current) {
+        innerRef.current.style.transform = `rotateX(${rot.current.x}deg) rotateY(${rot.current.y}deg)`;
+      }
 
       const mod = isMobile ? 4 : 2;
       frameRef.current = (frameRef.current + 1) % mod;
@@ -406,213 +408,238 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
           width: wrapSize,
           height: wrapSize,
           perspective: isMobile ? "980px" : "1550px",
+          WebkitPerspective: isMobile ? "980px" : "1550px",
           transformStyle: "preserve-3d",
+          WebkitTransformStyle: "preserve-3d",
         }}
       >
-        {/* Animate a child layer instead of the perspective layer */}
+        {/* ✅ NEW: animate a wrapper that does NOT own the 3D scene (prevents iOS flattening) */}
         <motion.div
-          ref={wrapRef}
           className="relative h-full w-full"
-          style={{
-            transformStyle: "preserve-3d",
-            WebkitTransformStyle: "preserve-3d",
-          }}
           initial={{ opacity: 0, scale: 0.7, y: 26 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            // ensure the animated wrapper doesn't accidentally create a flattening context for children
+            transformStyle: "preserve-3d",
+            WebkitTransformStyle: "preserve-3d",
+          }}
         >
-          <motion.div
-            className="pointer-events-none absolute inset-0 rounded-full"
-            style={{ background: specular, opacity: theme === "light" ? 0.16 : 0.2 }}
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: theme === "light" ? 0.16 : 0.2, scale: 1 }}
-            transition={{ duration: 2.0, ease: [0.16, 1, 0.3, 1] }}
-          />
+          {/* ✅ NEW: wrapRef is now a plain div (no motion transforms on the 3D scene root) */}
+          <div
+            ref={wrapRef}
+            className="relative h-full w-full"
+            style={{
+              transformStyle: "preserve-3d",
+              WebkitTransformStyle: "preserve-3d",
+              // iOS compositing nudge
+              transform: "translateZ(0.01px)",
+              WebkitTransform: "translateZ(0.01px)",
+            }}
+          >
+            <motion.div
+              className="pointer-events-none absolute inset-0 rounded-full"
+              style={{ background: specular, opacity: theme === "light" ? 0.16 : 0.2 }}
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: theme === "light" ? 0.16 : 0.2, scale: 1 }}
+              transition={{ duration: 2.0, ease: [0.16, 1, 0.3, 1] }}
+            />
 
-          <div className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
-            <div ref={innerRef} className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
-              {items.map((it) => {
-                const p = pointsById.get(it.id) || { lon: 0, lat: 0 };
+            <div className="absolute inset-0" style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d" }}>
+              <div
+                ref={innerRef}
+                className="absolute inset-0"
+                style={{
+                  transformStyle: "preserve-3d",
+                  WebkitTransformStyle: "preserve-3d",
+                  backfaceVisibility: "hidden",
+                  WebkitBackfaceVisibility: "hidden",
+                }}
+              >
+                {items.map((it) => {
+                  const p = pointsById.get(it.id) || { lon: 0, lat: 0 };
 
-                const facing = Math.cos(p.lon) * Math.cos(p.lat);
-                const facing01 = clamp((facing + 1) / 2, 0, 1);
+                  const facing = Math.cos(p.lon) * Math.cos(p.lat);
+                  const facing01 = clamp((facing + 1) / 2, 0, 1);
 
-                const zBoost = facing * (isMobile ? 8 : 14);
-                const place = `rotateY(${(p.lon * 180) / Math.PI}deg) rotateX(${(-p.lat * 180) / Math.PI}deg) translateZ(${R + zBoost}px)`;
+                  const zBoost = facing * (isMobile ? 8 : 14);
+                  const place = `rotateY(${(p.lon * 180) / Math.PI}deg) rotateX(${(-p.lat * 180) / Math.PI}deg) translateZ(${R + zBoost}px)`;
 
-                const pal = it.palette ?? pickPalette(it.company || it.title || it.id);
+                  const pal = it.palette ?? pickPalette(it.company || it.title || it.id);
 
-                const aHot = theme === "dark" ? rgba(pal.a, 0.62) : rgba(pal.a, 0.48);
-                const bHot = theme === "dark" ? rgba(pal.b, 0.54) : rgba(pal.b, 0.4);
-                const rimA = theme === "dark" ? rgba(pal.a, 0.2) : rgba(pal.a, 0.18);
-                const rimB = theme === "dark" ? rgba(pal.b, 0.18) : rgba(pal.b, 0.16);
+                  const aHot = theme === "dark" ? rgba(pal.a, 0.62) : rgba(pal.a, 0.48);
+                  const bHot = theme === "dark" ? rgba(pal.b, 0.54) : rgba(pal.b, 0.4);
+                  const rimA = theme === "dark" ? rgba(pal.a, 0.2) : rgba(pal.a, 0.18);
+                  const rimB = theme === "dark" ? rgba(pal.b, 0.18) : rgba(pal.b, 0.16);
 
-                const glow =
-                  theme === "dark"
-                    ? `0 0 0 1px rgba(255,255,255,0.10),
-                       0 18px 70px rgba(0,0,0,0.55),
-                       0 0 44px ${rgba(pal.a, 0.18)}`
-                    : `0 0 0 1px rgba(0,0,0,0.14),
-                       0 14px 60px rgba(0,0,0,0.12),
-                       0 0 26px ${rgba(pal.a, 0.12)}`;
+                  const glow =
+                    theme === "dark"
+                      ? `0 0 0 1px rgba(255,255,255,0.10),
+                         0 18px 70px rgba(0,0,0,0.55),
+                         0 0 44px ${rgba(pal.a, 0.18)}`
+                      : `0 0 0 1px rgba(0,0,0,0.14),
+                         0 14px 60px rgba(0,0,0,0.12),
+                         0 0 26px ${rgba(pal.a, 0.12)}`;
 
-                const cardBorder = theme === "light" ? "border-black/15" : "border-white/14";
-                const primary = it.type === "skill" ? it.title : it.company || it.title;
-                const secondary = it.type === "skill" ? it.company || "" : it.title || "";
-                const badge = (it.logoText || initials(primary)).slice(0, 3).toUpperCase();
+                  const cardBorder = theme === "light" ? "border-black/15" : "border-white/14";
+                  const primary = it.type === "skill" ? it.title : it.company || it.title;
+                  const secondary = it.type === "skill" ? it.company || "" : it.title || "";
+                  const badge = (it.logoText || initials(primary)).slice(0, 3).toUpperCase();
 
-                return (
-                  <button
-                    key={it.id}
-                    data-card="1"
-                    data-lon={String(p.lon)}
-                    data-lat={String(p.lat)}
-                    className="globe-card group absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 outline-none"
-                    style={{
-                      width: cardW,
-                      height: cardH,
-                      transformStyle: "preserve-3d",
-                      transform: place,
-                      backfaceVisibility: "hidden",
-                      WebkitBackfaceVisibility: "hidden",
-                    }}
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault?.();
-                      tapRef.current.downX = e.clientX;
-                      tapRef.current.downY = e.clientY;
-                      tapRef.current.moved = false;
-                      tapRef.current.t = performance.now();
-                      tapRef.current.pid = e.pointerId;
+                  return (
+                    <button
+                      key={it.id}
+                      data-card="1"
+                      data-lon={String(p.lon)}
+                      data-lat={String(p.lat)}
+                      className="globe-card group absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 outline-none"
+                      style={{
+                        width: cardW,
+                        height: cardH,
+                        transformStyle: "preserve-3d",
+                        WebkitTransformStyle: "preserve-3d",
+                        transform: place,
+                        backfaceVisibility: "hidden",
+                        WebkitBackfaceVisibility: "hidden",
+                      }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault?.();
+                        tapRef.current.downX = e.clientX;
+                        tapRef.current.downY = e.clientY;
+                        tapRef.current.moved = false;
+                        tapRef.current.t = performance.now();
+                        tapRef.current.pid = e.pointerId;
 
-                      try {
-                        e.currentTarget.setPointerCapture?.(e.pointerId);
-                      } catch {}
-                    }}
-                    onPointerMove={(e) => {
-                      if (tapRef.current.pid != null && e.pointerId !== tapRef.current.pid) return;
-                      const dx = Math.abs(e.clientX - tapRef.current.downX);
-                      const dy = Math.abs(e.clientY - tapRef.current.downY);
-                      if (dx > 8 || dy > 8) tapRef.current.moved = true;
-                    }}
-                    onPointerUp={(e) => {
-                      if (tapRef.current.pid != null && e.pointerId !== tapRef.current.pid) return;
-                      e.stopPropagation();
-                      e.preventDefault?.();
-                      const dt = performance.now() - tapRef.current.t;
+                        try {
+                          e.currentTarget.setPointerCapture?.(e.pointerId);
+                        } catch {}
+                      }}
+                      onPointerMove={(e) => {
+                        if (tapRef.current.pid != null && e.pointerId !== tapRef.current.pid) return;
+                        const dx = Math.abs(e.clientX - tapRef.current.downX);
+                        const dy = Math.abs(e.clientY - tapRef.current.downY);
+                        if (dx > 8 || dy > 8) tapRef.current.moved = true;
+                      }}
+                      onPointerUp={(e) => {
+                        if (tapRef.current.pid != null && e.pointerId !== tapRef.current.pid) return;
+                        e.stopPropagation();
+                        e.preventDefault?.();
+                        const dt = performance.now() - tapRef.current.t;
 
-                      if (!tapRef.current.moved && dt < 700) onSelect(it, { x: e.clientX, y: e.clientY });
+                        if (!tapRef.current.moved && dt < 700) onSelect(it, { x: e.clientX, y: e.clientY });
 
-                      tapRef.current.pid = null;
-                    }}
-                    onPointerCancel={() => {
-                      tapRef.current.pid = null;
-                    }}
-                  >
-                    <motion.div
-                      className="relative h-full w-full"
-                      style={{ transform: "scale(var(--depthScale, 1))", transition: "transform 120ms ease" }}
-                      whileHover={!isMobile ? { scale: 1.06, y: -2 } : undefined}
-                      whileTap={!isMobile ? { scale: 0.985 } : undefined}
-                      transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                        tapRef.current.pid = null;
+                      }}
+                      onPointerCancel={() => {
+                        tapRef.current.pid = null;
+                      }}
                     >
-                      <div className={cn("relative h-full w-full overflow-hidden rounded-2xl border", cardBorder)} style={{ boxShadow: glow }}>
-                        <div
-                          className="absolute inset-0"
-                          style={{
-                            background:
-                              theme === "dark"
-                                ? `
-                                  radial-gradient(circle at 18% 16%, ${aHot}, rgba(0,0,0,0) 60%),
-                                  radial-gradient(circle at 88% 86%, ${bHot}, rgba(0,0,0,0) 62%),
-                                  linear-gradient(135deg, rgba(255,255,255,0.18), rgba(0,0,0,0) 70%)
-                                `
-                                : `
-                                  radial-gradient(circle at 18% 16%, ${aHot}, rgba(255,255,255,0) 60%),
-                                  radial-gradient(circle at 88% 86%, ${bHot}, rgba(255,255,255,0) 64%),
-                                  radial-gradient(circle at 50% 120%, rgba(0,0,0,0.18), rgba(0,0,0,0) 58%),
-                                  linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.70))
-                                `,
-                          }}
-                        />
+                      <motion.div
+                        className="relative h-full w-full"
+                        style={{ transform: "scale(var(--depthScale, 1))", transition: "transform 120ms ease" }}
+                        whileHover={!isMobile ? { scale: 1.06, y: -2 } : undefined}
+                        whileTap={!isMobile ? { scale: 0.985 } : undefined}
+                        transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                      >
+                        <div className={cn("relative h-full w-full overflow-hidden rounded-2xl border", cardBorder)} style={{ boxShadow: glow }}>
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              background:
+                                theme === "dark"
+                                  ? `
+                                    radial-gradient(circle at 18% 16%, ${aHot}, rgba(0,0,0,0) 60%),
+                                    radial-gradient(circle at 88% 86%, ${bHot}, rgba(0,0,0,0) 62%),
+                                    linear-gradient(135deg, rgba(255,255,255,0.18), rgba(0,0,0,0) 70%)
+                                  `
+                                  : `
+                                    radial-gradient(circle at 18% 16%, ${aHot}, rgba(255,255,255,0) 60%),
+                                    radial-gradient(circle at 88% 86%, ${bHot}, rgba(255,255,255,0) 64%),
+                                    radial-gradient(circle at 50% 120%, rgba(0,0,0,0.18), rgba(0,0,0,0) 58%),
+                                    linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.70))
+                                  `,
+                            }}
+                          />
 
-                        <div
-                          className="absolute inset-0"
-                          style={{
-                            background: `linear-gradient(135deg, ${rimA}, rgba(255,255,255,0) 45%, ${rimB})`,
-                            opacity: 0.95,
-                          }}
-                        />
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              background: `linear-gradient(135deg, ${rimA}, rgba(255,255,255,0) 45%, ${rimB})`,
+                              opacity: 0.95,
+                            }}
+                          />
 
-                        <div className="absolute inset-0 backdrop-blur-[10px]" style={{ opacity: theme === "dark" ? 0.28 : 0.34 }} />
+                          <div className="absolute inset-0 backdrop-blur-[10px]" style={{ opacity: theme === "dark" ? 0.28 : 0.34 }} />
 
-                        {isMobile ? (
-                          <div className="relative flex h-full flex-col items-center justify-center gap-2 p-2">
-                            <div
-                              className={cn(
-                                "grid place-items-center rounded-2xl border font-extrabold tracking-wide",
-                                theme === "light"
-                                  ? "border-black/15 bg-black/[0.07] text-black/92"
-                                  : "border-white/14 bg-black/35 text-white/92"
-                              )}
-                              style={{ width: 34, height: 34, fontSize: 11.25 }}
-                            >
-                              {badge}
+                          {isMobile ? (
+                            <div className="relative flex h-full flex-col items-center justify-center gap-2 p-2">
+                              <div
+                                className={cn(
+                                  "grid place-items-center rounded-2xl border font-extrabold tracking-wide",
+                                  theme === "light"
+                                    ? "border-black/15 bg-black/[0.07] text-black/92"
+                                    : "border-white/14 bg-black/35 text-white/92"
+                                )}
+                                style={{ width: 34, height: 34, fontSize: 11.25 }}
+                              >
+                                {badge}
+                              </div>
+                              <div
+                                className={cn("w-full text-center font-semibold", theme === "light" ? "text-black/92" : "text-white/92")}
+                                style={{ fontSize: 10.4, lineHeight: "12px", maxHeight: "26px", overflow: "hidden" }}
+                              >
+                                {primary}
+                              </div>
                             </div>
-                            <div
-                              className={cn("w-full text-center font-semibold", theme === "light" ? "text-black/92" : "text-white/92")}
-                              style={{ fontSize: 10.4, lineHeight: "12px", maxHeight: "26px", overflow: "hidden" }}
-                            >
-                              {primary}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="relative flex h-full flex-col justify-between p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-start gap-2 min-w-0">
-                                <div
-                                  className={cn(
-                                    "grid place-items-center rounded-xl border font-extrabold shrink-0",
-                                    theme === "light"
-                                      ? "border-black/15 bg-black/[0.07] text-black/92"
-                                      : "border-white/14 bg-black/35 text-white/90"
-                                  )}
-                                  style={{ width: 34, height: 34, fontSize: 12 }}
-                                >
-                                  {badge}
-                                </div>
-                                <div className="min-w-0 text-left">
-                                  <div className={cn("text-[12px] font-semibold leading-4", theme === "light" ? "text-black/92" : "text-white/92")}>
-                                    {primary}
+                          ) : (
+                            <div className="relative flex h-full flex-col justify-between p-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-2 min-w-0">
+                                  <div
+                                    className={cn(
+                                      "grid place-items-center rounded-xl border font-extrabold shrink-0",
+                                      theme === "light"
+                                        ? "border-black/15 bg-black/[0.07] text-black/92"
+                                        : "border-white/14 bg-black/35 text-white/90"
+                                    )}
+                                    style={{ width: 34, height: 34, fontSize: 12 }}
+                                  >
+                                    {badge}
                                   </div>
-                                  {secondary ? (
-                                    <div className={cn("mt-1 line-clamp-1 text-[11px]", theme === "light" ? "text-black/70" : "text-white/62")}>
-                                      {secondary}
+                                  <div className="min-w-0 text-left">
+                                    <div className={cn("text-[12px] font-semibold leading-4", theme === "light" ? "text-black/92" : "text-white/92")}>
+                                      {primary}
                                     </div>
-                                  ) : null}
+                                    {secondary ? (
+                                      <div className={cn("mt-1 line-clamp-1 text-[11px]", theme === "light" ? "text-black/70" : "text-white/62")}>
+                                        {secondary}
+                                      </div>
+                                    ) : null}
+                                  </div>
                                 </div>
+
+                                <ArrowUpRight
+                                  className={cn(
+                                    "h-4 w-4 shrink-0 opacity-70 transition group-hover:opacity-100",
+                                    theme === "light" ? "text-black/70" : "text-white/75"
+                                  )}
+                                />
                               </div>
 
-                              <ArrowUpRight
-                                className={cn(
-                                  "h-4 w-4 shrink-0 opacity-70 transition group-hover:opacity-100",
-                                  theme === "light" ? "text-black/70" : "text-white/75"
-                                )}
-                              />
+                              <div className={cn("mt-2 text-[11px]", theme === "light" ? "text-black/65" : "text-white/58")}>
+                                {it.meta ? <span className="line-clamp-1">{it.meta}</span> : <span>&nbsp;</span>}
+                              </div>
                             </div>
+                          )}
+                        </div>
 
-                            <div className={cn("mt-2 text-[11px]", theme === "light" ? "text-black/65" : "text-white/58")}>
-                              {it.meta ? <span className="line-clamp-1">{it.meta}</span> : <span>&nbsp;</span>}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {facing01 > 0.78 ? <div className="pointer-events-none absolute inset-0 rounded-2xl card-front-glow" /> : null}
-                    </motion.div>
-                  </button>
-                );
-              })}
+                        {facing01 > 0.78 ? <div className="pointer-events-none absolute inset-0 rounded-2xl card-front-glow" /> : null}
+                      </motion.div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </motion.div>

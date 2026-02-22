@@ -40,31 +40,27 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Globe: iOS 3D stability fixes                                               */
+/* -------------------------------------------------------------------------- */
+
 /* perf hints (no layout change) */
 .globe-card {
   will-change: transform;
-  transform: translateZ(0);
+  /* IMPORTANT: do NOT set transform here.
+     Cards already use inline transform for 3D placement.
+     Setting transform here can create iOS compositing/flattening glitches. */
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+
+  /* avoid iOS long-press / callout */
+  -webkit-touch-callout: none;
 }
 
 /* prevent iOS “double tap to zoom” jitter + keep gestures inside */
 .globe-card,
 canvas {
   touch-action: none;
-}
-
-/* allow smooth scrolling inside modal only */
-.modal-scroll {
-  -webkit-overflow-scrolling: touch;
-}
-
-/* ✅ modal GPU hint (App.jsx uses modal-panel) */
-.modal-panel {
-  will-change: transform, opacity, filter;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 /* subtle premium click animation */
@@ -79,15 +75,29 @@ a:active {
   transform: scale(0.98);
 }
 
-/* ✅ avoid fighting globe card 3D transforms (removes iOS micro-jitter) */
-.globe-card:active {
+/* ✅ DO NOT override globe card transform on active
+   This was killing the 3D placement on tap (very visible on iOS). */
+/* .globe-card:active {
   transform: none !important;
-}
+} */
 
 button:focus-visible,
 a:focus-visible {
   outline: none;
   filter: brightness(1.06);
+}
+
+/* allow smooth scrolling inside modal only */
+.modal-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ✅ modal GPU hint (App.jsx uses modal-panel) */
+.modal-panel {
+  will-change: transform, opacity, filter;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* hint glow */
@@ -189,10 +199,12 @@ html[data-theme="light"] .browse-star {
 /* --------------------- legacy globe slice styles (kept minimal) --------------------- */
 .globe-shell {
   transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
   pointer-events: none;
 }
 .globe-bend {
   transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
   border-radius: inherit;
   overflow: hidden;
 }
@@ -203,10 +215,14 @@ html[data-theme="light"] .browse-star {
   width: 4.3%;
   margin-left: -0.215%;
   transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
   transform-origin: center center;
-  transform: translateZ(calc(var(--sliceZ, 0px) + var(--sliceBulge, 0px))) rotateY(var(--sliceRot, 0deg));
+
+  /* iOS SAFETY: avoid translateZ(calc(var()+var())) */
+  transform: translate3d(0, 0, var(--sliceZ, 0px)) rotateY(var(--sliceRot, 0deg));
   filter: none;
 }
+
 .globe-bend::after {
   content: "";
   position: absolute;
@@ -223,6 +239,7 @@ html[data-theme="light"] .browse-star {
   mix-blend-mode: multiply;
   opacity: 0.7;
 }
+
 .globe-glass {
   pointer-events: none;
   border-radius: inherit;
@@ -255,8 +272,8 @@ html[data-theme="light"] .browse-star {
 /* iOS Safari tap fix: keep globe rendering intact, but make card taps reliable */
 /* -------------------------------------------------------------------------- */
 @supports (-webkit-touch-callout: none) {
-  /* Make iOS treat card taps as taps (not as globe gesture input) */
   .globe-card {
+    /* keep taps snappy without stealing pan gestures */
     touch-action: manipulation;
     position: relative;
     z-index: 5;
