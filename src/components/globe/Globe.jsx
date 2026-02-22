@@ -294,38 +294,50 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
     const el = wrapRef.current;
     if (!el) return;
 
-    const THRESH = 6;
+    const THRESH = 8; // a bit higher to ignore iOS touch jitter
 
     const onDown = (e) => {
-      e.preventDefault?.();
-
       const pressedCard = e.target?.closest?.("button[data-card='1']");
+
       drag.current.pointerType = e.pointerType || "mouse";
       drag.current.pid = e.pointerId;
       drag.current.lx = e.clientX;
       drag.current.startX = e.clientX;
       lastInteract.current = performance.now();
 
+      // If the user started on a card, let the card own the pointer sequence.
+      // iOS Safari is sensitive to capture+preventDefault in capture phase.
       drag.current.active = !pressedCard;
       drag.current.pending = !!pressedCard;
 
-      try {
-        el.setPointerCapture?.(e.pointerId);
-      } catch {}
+      if (!pressedCard) {
+        // Only block defaults + capture when dragging the globe itself
+        e.preventDefault?.();
+        try {
+          el.setPointerCapture?.(e.pointerId);
+        } catch {}
+      }
     };
 
     const onMove = (e) => {
       if (drag.current.pid != null && e.pointerId !== drag.current.pid) return;
       if (!drag.current.active && !drag.current.pending) return;
 
-      e.preventDefault?.();
+      // Only prevent default when we’re actually dragging the globe
+      if (drag.current.active) e.preventDefault?.();
 
       const totalDx = e.clientX - (drag.current.startX ?? drag.current.lx);
 
+      // If we started on a card but user drags enough, convert into globe drag.
       if (drag.current.pending && Math.abs(totalDx) > THRESH) {
         drag.current.pending = false;
         drag.current.active = true;
         tapRef.current.moved = true;
+
+        // Now that we’re dragging the globe, capture to keep motion stable.
+        try {
+          el.setPointerCapture?.(e.pointerId);
+        } catch {}
       }
 
       if (!drag.current.active) return;
@@ -471,7 +483,7 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
                   }}
                   onPointerDown={(e) => {
                     e.stopPropagation();
-                    e.preventDefault?.();
+                    // keep: card should own the tap; avoid fighting iOS capture
                     tapRef.current.downX = e.clientX;
                     tapRef.current.downY = e.clientY;
                     tapRef.current.moved = false;
@@ -491,7 +503,6 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
                   onPointerUp={(e) => {
                     if (tapRef.current.pid != null && e.pointerId !== tapRef.current.pid) return;
                     e.stopPropagation();
-                    e.preventDefault?.();
                     const dt = performance.now() - tapRef.current.t;
 
                     if (!tapRef.current.moved && dt < 700) onSelect(it, { x: e.clientX, y: e.clientY });
