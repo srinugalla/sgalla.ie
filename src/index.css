@@ -40,27 +40,33 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Globe: iOS 3D stability fixes                                               */
-/* -------------------------------------------------------------------------- */
+/* ----------------------- Globe stability: IMPORTANT ----------------------- */
 
 /* perf hints (no layout change) */
 .globe-card {
   will-change: transform;
-  /* IMPORTANT: do NOT set transform here.
-     Cards already use inline transform for 3D placement.
-     Setting transform here can create iOS compositing/flattening glitches. */
+  /* DO NOT set transform here. Cards have inline 3D transforms already. */
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-
-  /* avoid iOS long-press / callout */
-  -webkit-touch-callout: none;
 }
 
 /* prevent iOS “double tap to zoom” jitter + keep gestures inside */
 .globe-card,
 canvas {
   touch-action: none;
+}
+
+/* allow smooth scrolling inside modal only */
+.modal-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ✅ modal GPU hint (App.jsx uses modal-panel) */
+.modal-panel {
+  will-change: transform, opacity, filter;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* subtle premium click animation */
@@ -75,29 +81,13 @@ a:active {
   transform: scale(0.98);
 }
 
-/* ✅ DO NOT override globe card transform on active
-   This was killing the 3D placement on tap (very visible on iOS). */
-/* .globe-card:active {
-  transform: none !important;
-} */
+/* ❌ REMOVE: this breaks 3D placement when card is tapped */
+/* .globe-card:active { transform: none !important; } */
 
 button:focus-visible,
 a:focus-visible {
   outline: none;
   filter: brightness(1.06);
-}
-
-/* allow smooth scrolling inside modal only */
-.modal-scroll {
-  -webkit-overflow-scrolling: touch;
-}
-
-/* ✅ modal GPU hint (App.jsx uses modal-panel) */
-.modal-panel {
-  will-change: transform, opacity, filter;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 /* hint glow */
@@ -155,7 +145,7 @@ a:focus-visible {
     linear-gradient(110deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.55) 18%, rgba(255, 255, 255, 0) 36%);
   mix-blend-mode: overlay;
   opacity: 0;
-  animation: sparkleSweep 1.45s ease-in-out 0.12s 5; /* ✅ exactly 5 */
+  animation: sparkleSweep 1.45s ease-in-out 0.12s 5;
 }
 
 html[data-theme="light"] .hint-sparkle-5::after,
@@ -223,60 +213,24 @@ html[data-theme="light"] .browse-star {
   filter: none;
 }
 
-.globe-bend::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(
-    to right,
-    rgba(0, 0, 0, calc(0.06 + (var(--curveAbs, 0) * 0.18))),
-    rgba(0, 0, 0, 0) 22%,
-    rgba(0, 0, 0, 0) 78%,
-    rgba(0, 0, 0, calc(0.06 + (var(--curveAbs, 0) * 0.18)))
-  );
-  mix-blend-mode: multiply;
-  opacity: 0.7;
-}
-
-.globe-glass {
-  pointer-events: none;
-  border-radius: inherit;
-  mix-blend-mode: overlay;
-}
-.globe-glass-dark {
-  background: radial-gradient(140% 100% at 50% 10%, rgba(255, 255, 255, calc(0.22 + (var(--facing, 0.5) * 0.14))), rgba(0, 0, 0, 0) 56%),
-    radial-gradient(120% 110% at 50% 55%, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0) 58%),
-    radial-gradient(140% 120% at 50% 120%, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0) 62%);
-  opacity: 0.92;
-}
-.globe-glass-light {
-  background: radial-gradient(140% 100% at 50% 10%, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0) 56%),
-    radial-gradient(120% 110% at 50% 55%, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0) 58%),
-    radial-gradient(140% 120% at 50% 120%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0) 62%);
-  opacity: 0.58;
-}
-.globe-content {
-  position: relative;
-  z-index: 2;
-}
-
-@media (max-width: 640px) {
-  .globe-bend::after {
-    opacity: 0.85;
-  }
-}
-
 /* -------------------------------------------------------------------------- */
-/* iOS Safari tap fix: keep globe rendering intact, but make card taps reliable */
+/* iOS Safari: keep taps reliable + prevent 3D flattening triggers             */
 /* -------------------------------------------------------------------------- */
 @supports (-webkit-touch-callout: none) {
   .globe-card {
-    /* keep taps snappy without stealing pan gestures */
     touch-action: manipulation;
-    position: relative;
-    z-index: 5;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* iOS 3D flattening triggers: disable heavy compositing inside globe cards */
+  .ios-no-backdrop {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .ios-no-filter {
+    filter: none !important;
+  }
+  .ios-no-mixblend {
+    mix-blend-mode: normal !important;
   }
 }

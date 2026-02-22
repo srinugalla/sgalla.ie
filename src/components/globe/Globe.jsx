@@ -97,6 +97,14 @@ function premiumSphereLayout(items, { isMobile }) {
   return out;
 }
 
+function detectIOS() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const isApple = /iPad|iPhone|iPod/.test(ua);
+  const isTouchMac = /Macintosh/.test(ua) && typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1;
+  return isApple || isTouchMac;
+}
+
 export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
   const wrapRef = useRef(null);
   const innerRef = useRef(null);
@@ -121,10 +129,15 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
   const [R, setR] = useState(420);
   const [wrapSize, setWrapSize] = useState(960);
   const [cardScale, setCardScale] = useState(1);
+  const [isIOS, setIsIOS] = useState(false);
 
   const cardNodesRef = useRef([]);
   const frameRef = useRef(0);
   const tapRef = useRef({ downX: 0, downY: 0, moved: false, t: 0, pid: null });
+
+  useEffect(() => {
+    setIsIOS(detectIOS());
+  }, []);
 
   useEffect(() => {
     const onResize = () => {
@@ -395,15 +408,11 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
       ? "linear-gradient(135deg, rgba(0,0,0,0.06), rgba(255,255,255,0) 46%), linear-gradient(315deg, rgba(0,0,0,0.05), rgba(255,255,255,0) 58%)"
       : "linear-gradient(135deg, rgba(255,255,255,0.08), rgba(0,0,0,0) 48%), linear-gradient(315deg, rgba(255,210,140,0.03), rgba(0,0,0,0) 58%)";
 
+  const introInitial = isIOS ? { opacity: 0 } : { opacity: 0, scale: 0.7, y: 26 };
+  const introAnimate = isIOS ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 };
+
   return (
-    <div
-      className="relative z-10 flex w-full items-center justify-center"
-      style={{
-        /* iOS-safe viewport height (fixes bottom drift on some Safari builds) */
-        height: "100svh",
-        minHeight: "100svh",
-      }}
-    >
+    <div className="relative z-10 flex h-[100svh] w-full items-center justify-center">
       <div
         className="relative select-none"
         style={{
@@ -411,19 +420,18 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
           height: wrapSize,
           perspective: isMobile ? "980px" : "1550px",
           WebkitPerspective: isMobile ? "980px" : "1550px",
+          perspectiveOrigin: "50% 50%",
+          WebkitPerspectiveOrigin: "50% 50%",
           transformStyle: "preserve-3d",
           WebkitTransformStyle: "preserve-3d",
         }}
       >
         <motion.div
           className="relative h-full w-full"
-          initial={{ opacity: 0, scale: 0.7, y: 26 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
+          initial={introInitial}
+          animate={introAnimate}
           transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] }}
-          style={{
-            transformStyle: "preserve-3d",
-            WebkitTransformStyle: "preserve-3d",
-          }}
+          style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d" }}
         >
           <div
             ref={wrapRef}
@@ -435,13 +443,18 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
               WebkitTransform: "translateZ(0.01px)",
             }}
           >
-            <motion.div
-              className="pointer-events-none absolute inset-0 rounded-full"
-              style={{ background: specular, opacity: theme === "light" ? 0.16 : 0.2 }}
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: theme === "light" ? 0.16 : 0.2, scale: 1 }}
-              transition={{ duration: 2.0, ease: [0.16, 1, 0.3, 1] }}
-            />
+            {/* iOS: no scaling animation */}
+            {isIOS ? (
+              <div className="pointer-events-none absolute inset-0 rounded-full" style={{ background: specular, opacity: theme === "light" ? 0.16 : 0.2 }} />
+            ) : (
+              <motion.div
+                className="pointer-events-none absolute inset-0 rounded-full"
+                style={{ background: specular, opacity: theme === "light" ? 0.16 : 0.2 }}
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: theme === "light" ? 0.16 : 0.2, scale: 1 }}
+                transition={{ duration: 2.0, ease: [0.16, 1, 0.3, 1] }}
+              />
+            )}
 
             <div className="absolute inset-0" style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d" }}>
               <div ref={innerRef} className="absolute inset-0" style={{ transformStyle: "preserve-3d", WebkitTransformStyle: "preserve-3d" }}>
@@ -474,6 +487,9 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
                   const primary = it.type === "skill" ? it.title : it.company || it.title;
                   const secondary = it.type === "skill" ? it.company || "" : it.title || "";
                   const badge = (it.logoText || initials(primary)).slice(0, 3).toUpperCase();
+
+                  // iOS: use plain div (no motion transforms)
+                  const CardInner = isIOS ? "div" : motion.div;
 
                   return (
                     <button
@@ -524,12 +540,19 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
                         tapRef.current.pid = null;
                       }}
                     >
-                      <motion.div
+                      <CardInner
                         className="relative h-full w-full"
-                        style={{ transform: "scale(var(--depthScale, 1))", transition: "transform 120ms ease" }}
-                        whileHover={!isMobile ? { scale: 1.06, y: -2 } : undefined}
-                        whileTap={!isMobile ? { scale: 0.985 } : undefined}
-                        transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                        {...(!isIOS
+                          ? {
+                              whileHover: !isMobile ? { scale: 1.06, y: -2 } : undefined,
+                              whileTap: !isMobile ? { scale: 0.985 } : undefined,
+                              transition: { type: "spring", stiffness: 260, damping: 18 },
+                            }
+                          : {})}
+                        style={{
+                          transform: "scale(var(--depthScale, 1))",
+                          transition: "transform 120ms ease",
+                        }}
                       >
                         <div className={cn("relative h-full w-full overflow-hidden rounded-2xl border", cardBorder)} style={{ boxShadow: glow }}>
                           <div
@@ -559,8 +582,14 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
                             }}
                           />
 
-                          {/* ✅ class hook: disable blur on iOS only (prevents 3D flattening) */}
-                          <div className="globe-blur absolute inset-0 backdrop-blur-[10px]" style={{ opacity: theme === "dark" ? 0.28 : 0.34 }} />
+                          {/* iOS: keep blur class so CSS can disable it */}
+                          <div
+                            className={cn(
+                              "absolute inset-0 backdrop-blur-[10px]",
+                              isIOS ? "ios-no-backdrop ios-no-filter ios-no-mixblend" : ""
+                            )}
+                            style={{ opacity: theme === "dark" ? 0.28 : 0.34 }}
+                          />
 
                           {isMobile ? (
                             <div className="relative flex h-full flex-col items-center justify-center gap-2 p-2">
@@ -624,8 +653,11 @@ export default function Globe({ items, onSelect, theme = "dark", isMobile }) {
                           )}
                         </div>
 
-                        {facing01 > 0.78 ? <div className="pointer-events-none absolute inset-0 rounded-2xl card-front-glow" /> : null}
-                      </motion.div>
+                        {/* iOS: drop-shadow filter can force rasterization; CSS removes it on iOS if needed */}
+                        {facing01 > 0.78 ? (
+                          <div className={cn("pointer-events-none absolute inset-0 rounded-2xl card-front-glow", isIOS ? "ios-no-filter" : "")} />
+                        ) : null}
+                      </CardInner>
                     </button>
                   );
                 })}
