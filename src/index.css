@@ -48,26 +48,10 @@ body {
   -webkit-backface-visibility: hidden;
 }
 
-/* iOS Safari: allow taps on cards, keep globe gesture isolation on canvas */
-.globe-card {
-  touch-action: manipulation; /* taps behave like taps */
-}
-
-/* keep globe/canvas from triggering scroll/zoom gestures */
+/* prevent iOS “double tap to zoom” jitter + keep gestures inside */
+.globe-card,
 canvas {
   touch-action: none;
-}
-
-/* iOS-only: stop canvas from hijacking taps meant for cards */
-@supports (-webkit-touch-callout: none) {
-  canvas {
-    pointer-events: none;
-  }
-  .globe-card {
-    pointer-events: auto;
-    position: relative;
-    z-index: 10; /* ensure it wins hit-testing */
-  }
 }
 
 /* allow smooth scrolling inside modal only */
@@ -264,5 +248,18 @@ html[data-theme="light"] .browse-star {
 @media (max-width: 640px) {
   .globe-bend::after {
     opacity: 0.85;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* iOS Safari tap fix: keep globe rendering intact, but make card taps reliable */
+/* -------------------------------------------------------------------------- */
+@supports (-webkit-touch-callout: none) {
+  /* Make iOS treat card taps as taps (not as globe gesture input) */
+  .globe-card {
+    touch-action: manipulation;
+    position: relative;
+    z-index: 5;
+    -webkit-tap-highlight-color: transparent;
   }
 }
