@@ -48,10 +48,26 @@ body {
   -webkit-backface-visibility: hidden;
 }
 
-/* prevent iOS “double tap to zoom” jitter + keep gestures inside */
-.globe-card,
+/* iOS Safari: allow taps on cards, keep globe gesture isolation on canvas */
+.globe-card {
+  touch-action: manipulation; /* taps behave like taps */
+}
+
+/* keep globe/canvas from triggering scroll/zoom gestures */
 canvas {
   touch-action: none;
+}
+
+/* iOS-only: stop canvas from hijacking taps meant for cards */
+@supports (-webkit-touch-callout: none) {
+  canvas {
+    pointer-events: none;
+  }
+  .globe-card {
+    pointer-events: auto;
+    position: relative;
+    z-index: 10; /* ensure it wins hit-testing */
+  }
 }
 
 /* allow smooth scrolling inside modal only */
